@@ -1,6 +1,6 @@
 # Project Status
 
-Last verification: 2026-10-25. See [M0.1 evidence and limitations](development/M0.1_VERIFICATION.md).
+Last verification: 2026-10-25. See [M0.1 evidence and limitations](development/M0.1_VERIFICATION.md) and [M0.1.1 CI verification](development/M0.1.1_CI_VERIFICATION.md).
 
 ## Actual state
 
@@ -23,7 +23,8 @@ Historical prototype checkmarks were accidental and explicitly withdrawn by the 
 | M0 prototype and benchmarks                              | In progress: desktop shell only; remaining seven prototype tasks pending; no measurements                     |
 | Store imports, launching and activity                    | Not implemented                                                                                               |
 | Mod adapters, deployment and recovery                    | Not implemented or tested                                                                                     |
-| Installer, updater, CI and release pipeline              | Not established                                                                                               |
+| Continuous integration                                  | M0.1.1 workflow valid; all equivalent local checks passed; first successful GitHub run still required       |
+| Installer, updater and release pipeline                  | Not established                                                                                               |
 | Game Tools, companion, dashboards, extension marketplace | Deferred                                                                                                      |
 
 ## M0.1 implementation and evidence
@@ -36,9 +37,15 @@ No prerequisite installation was needed. The inherited terminal PATH needed a se
 
 The earlier documentation reconciliation remains the product/architecture baseline. No accepted ADR has been changed.
 
+## M0.1.1 CI foundation
+
+The Windows-only workflow validates pull requests targeting `main`, pushes to `main`, and manual runs. It reuses the existing desktop quality scripts and Tauri's production build hook. Node.js 26.12.1, pnpm 12.15.0 from the package-manager declaration, Rust 1.99.1, and official action commit SHAs are pinned. Dependency-download caches exclude native build outputs and installers; permissions are read-only and no publishing or deployment is configured. The existing `.gitattributes` now enforces LF text checkouts; disposable checkout checks verified LF with Windows Git conversion enabled and unchanged binary icon bytes.
+
+All equivalent local checks passed: frozen pnpm installation, TypeScript, ESLint, Prettier/rustfmt, 8 frontend tests, release frontend/native Windows build, Clippy with warnings denied, and 1 Rust test. Workflow structure/expressions passed actionlint v1.7.12. A first release-build attempt was blocked by the earlier running bootstrap executable; after closing that window normally, the build passed. Local results and exact commands are recorded in the [CI verification report](development/M0.1.1_CI_VERIFICATION.md). **M0.1.1 is not complete until the workflow passes on GitHub.** No commit or push was authorized or performed for this task, so no run of the new workflow is claimed. No application code, dependency lockfile, architecture decision, or M0.2 scope was changed.
+
 ## Recommended next separately authorized task
 
-Agree and separately authorize M0.2's SQLite performance-prototype scope, following [ROADMAP](ROADMAP.md). No M0.2 work has begun. Synthetic data, virtualized Details View, Rust search/filter queries, artwork loading, import simulation and release benchmarks remain subsequent M0 work. Do not expand M0 into store integrations, full migrations, deployment, Game Tools or an extension framework.
+Review and authorize committing/pushing M0.1.1, inspect its first GitHub run, resolve any failures, and record the successful run URL before marking the milestone complete. Then separately agree and authorize M0.2's SQLite performance-prototype scope, following [ROADMAP](ROADMAP.md). No M0.2 work has begun. Synthetic data, virtualized Details View, Rust search/filter queries, artwork loading, import simulation and release benchmarks remain subsequent M0 work. Do not expand M0 into store integrations, full migrations, deployment, Game Tools or an extension framework.
 
 ## Genuine remaining work
 

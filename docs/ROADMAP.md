@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: **M0 is in progress: M0.1 Project Bootstrap complete; remaining prototype work pending.** M1–M5 have not started. No dates are committed. See [PROJECT_STATUS](PROJECT_STATUS.md) for verified progress and limitations; preparing documentation is not prototype completion.
+Status: **M0 is in progress: M0.1 Project Bootstrap complete; M0.1.1 CI awaits GitHub verification; remaining prototype work pending.** M1–M5 have not started. No dates are committed. See [PROJECT_STATUS](PROJECT_STATUS.md) for verified progress and limitations; preparing documentation is not prototype completion.
 
 ## M0 — Performance-validation prototype
 
@@ -16,6 +16,17 @@ Status: **M0 is in progress: M0.1 Project Bootstrap complete; remaining prototyp
 Scale fixtures through 500, 2,000, 5,000, 12,320, 15,000 and 25,000 records. Use the known Ryzen 5 4500/64 GB system as one reference, plus lower-memory testing. Record release build/version, hardware, storage placement, cache state, dataset seed/version and concurrent work. TAS contains the recovered provisional targets; no target is already achieved. Establish actual build/format/lint/test commands.
 
 Exit: reproducible 15,000-game measurements and a documented architecture assessment; stress findings at 25,000. Keep M0 synthetic and independent of real stores/game installations.
+
+### M0.1.1 — Continuous Integration Foundation
+
+This quality gate follows the verified M0.1 bootstrap and precedes M0.2. See the [CI verification report](development/M0.1.1_CI_VERIFICATION.md) for commands, results, pinned versions, and limitations.
+
+- [x] Prepare a Windows GitHub Actions workflow for pull requests to `main`, pushes to `main`, and manual runs.
+- [x] Configure existing quality/build commands, pinned tools/actions, frozen dependency installation, dependency-only caches, least-privilege permissions, and cancellation of superseded runs.
+- [x] Validate workflow structure and pass equivalent Windows local quality checks, frontend/Rust tests, and the release frontend/native build.
+- [ ] Complete M0.1.1: approve commit/push, obtain a successful GitHub run, and record its URL/result. Local checks alone do not complete this milestone.
+
+M0.2 remains unstarted and requires separate authorization. No installer publishing, deployment, signing, or benchmark gates are part of M0.1.1.
 
 ## M1 — Library foundation
 

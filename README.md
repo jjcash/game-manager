@@ -79,6 +79,14 @@ Run these from `apps/desktop/`:
 
 The release executable is `apps/desktop/src-tauri/target/release/game-manager.exe`. This is a development verification artifact, not a portable distribution or installed release. Installer format, signing, updating, and the supported Windows matrix remain M5 work. First builds download Rust dependencies and can take several minutes. pnpm and Cargo lockfiles are included; generated assets and build outputs are ignored.
 
+## Continuous integration
+
+[CI](.github/workflows/ci.yml) runs one **Windows quality checks** job on `windows-2025` for pull requests targeting `main`, pushes to `main`, and manual runs. It checks TypeScript, ESLint, Prettier/rustfmt, frontend tests, Clippy with warnings denied, Rust tests, and the production frontend/native Tauri build. Tauri invokes `pnpm build` before native compilation; CI does not build the frontend separately.
+
+CI pins Node.js 26.12.1, reads pnpm 12.15.0 from `package.json`, and pins Rust 1.99.1 for Windows MSVC with rustfmt and Clippy. It installs with frozen/locked dependencies, caches dependency downloads only, and cancels superseded runs. `.gitattributes` keeps text checkouts on LF for consistent formatting checks on Windows. Official actions are pinned to commit SHAs; permissions are read-only, checkout credentials are not retained, and no secrets, installer uploads, publishing, or deployment are configured.
+
+**M0.1.1 awaits its first successful GitHub run.** Local evidence and the approval-dependent commit/push instructions are in the [CI verification report](docs/development/M0.1.1_CI_VERIFICATION.md). After the check appears on GitHub, configure the `main` branch rules to require **Windows quality checks** before merging; the workflow alone does not enforce branch protection.
+
 ## Source layout and boundaries
 
 ```text
