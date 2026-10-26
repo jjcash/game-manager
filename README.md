@@ -17,7 +17,7 @@ The [M0.1 verification report](docs/development/M0.1_VERIFICATION.md) records th
 | [TAS](docs/specifications/TAS.md)                               | Modules, interfaces, workflows and performance budgets        |
 | [DSS](docs/specifications/DSS.md)                               | Detailed identity/schema/storage design and reference SQL     |
 | [MDRS](docs/specifications/MDRS.md)                             | Profiles, ownership, deployment, journaling and recovery      |
-| [ADRs](docs/decisions/README.md)                                | Five stable architecture decision records                     |
+| [ADRs](docs/decisions/README.md)                                | Accepted architecture and software-license decisions          |
 | [Sources and open decisions](docs/SOURCE_AND_OPEN_DECISIONS.md) | Recovered evidence, corrections and genuine remaining choices |
 
 ## Agreed direction
@@ -102,4 +102,8 @@ SQLite, benchmark datasets, virtualization, imports, search/filtering, launching
 
 ## License
 
-FOSS intent is confirmed. A specific open-source license still needs selection; no particular license or badge is implied.
+Game Manager's original software code is distributed under the GNU General Public License as published by the Free Software Foundation, either version 3 of the License or, at the recipient's option, any later version (**SPDX: `GPL-3.0-or-later`**). See [LICENSE](LICENSE) for the complete license text and [ADR-006](docs/decisions/ADR-006-software-license.md) for the accepted decision.
+
+Game Manager is distributed without any warranty, including the implied warranties of merchantability or fitness for a particular purpose, as provided in the license.
+
+This project license does not automatically relicense third-party game artwork, mods, ROMs, trainers, maps, guides, dependencies, or other external content. Those materials retain their respective licenses, copyrights, and usage restrictions; managing or launching them does not grant redistribution rights.

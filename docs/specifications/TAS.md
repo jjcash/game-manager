@@ -1162,7 +1162,7 @@ The initial launch should not wait for GOG, Epic, Ubisoft, EA, Amazon, and all e
 
 ### Accepted decisions
 
-The five repository ADR filenames are the stable package identifiers. The eight labels used in the original chat TAS were preliminary labels; their mapping is recorded in the source register.
+ADR-001 through ADR-005 retain their stable package identifiers. The eight labels used in the original chat TAS were preliminary labels; their mapping is recorded in the source register. The later repository ADR-006 records the accepted software license.
 
 | Decision | Repository authority |
 | --- | --- |
@@ -1171,6 +1171,7 @@ The five repository ADR filenames are the stable package identifiers. The eight 
 | Core stack, SQLite source of truth, offline core and module ownership | [ADR-003](../decisions/ADR-003-core-stack-and-local-first.md) |
 | Virtualized Details View and scale benchmarks | [ADR-004](../decisions/ADR-004-virtualized-details-and-benchmark.md) |
 | Future trainers progressively, external first | [ADR-005](../decisions/ADR-005-external-first-trainers.md) |
+| Original software code under GNU GPL version 3 or, at the recipient's option, any later version (`GPL-3.0-or-later`) | [ADR-006](../decisions/ADR-006-software-license.md) and [LICENSE](../../LICENSE) |
 | Configurable installation grouping; Library + Mod Manager MVP; built-in functionality first | [PRD](PRD.md) and [decision register](../SOURCE_AND_OPEN_DECISIONS.md) |
 
 ### Proposed decisions to validate through implementation

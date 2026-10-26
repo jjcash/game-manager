@@ -61,6 +61,7 @@ The source dates are October 24–25, 2026 in the user's conversation. This pack
 | C-16 | Built-in features first; extensions/marketplace much later | Stable interfaces now do not authorize arbitrary third-party code |
 | C-17 | Optional later Android companion | Library, stats, notes; remote launching not agreed |
 | C-18 | Imported community/critic ratings | No requirement to operate a new public rating service |
+| C-19 | GPL-3.0-or-later software license | Explicit user selection on 2026-10-25; original software code under GPL version 3 or, at the recipient's option, any later version; [ADR-006](decisions/ADR-006-software-license.md); resolves O-10 |
 
 The exact game list and integration priority are settled. They must not be reintroduced as unresolved questions. The game list is a target set; only the storefront list was explicitly ranked. First adapter candidates are Half-Life 2, classic Doom II and Stardew Valley; their exact supported subset and versions need validation.
 
@@ -72,7 +73,7 @@ DSS contains the real proposed entities, indexes, paths, transactions and SQL sk
 
 ## Historical ADR numbering reconciliation
 
-The original chat TAS used eight preliminary labels, while the supplied package had five differently grouped ADR filenames. Keep the supplied filenames stable and use this mapping; do not refer to nonexistent ADR-006/007/008 files.
+The original chat TAS used eight preliminary labels, while the supplied package had five differently grouped ADR filenames. Keep ADR-001 through ADR-005 stable and use this historical mapping. Historical ADR-006/007/008 labels do not designate repository files. The later [repository ADR-006](decisions/ADR-006-software-license.md) records the software license and is unrelated to the historical installation-grouping label.
 
 | Historical TAS label | Historical subject | Current package authority |
 | --- | --- | --- |
@@ -100,7 +101,6 @@ Current ADR-002 records the later installed-only decision. Current ADR-005 recor
 | O-07 | Installer format, signing and update policy | M5; one format initially, NSIS suggested but not finalized |
 | O-08 | Concrete DDL, types, physical root map, filenames and retention defaults | DSS implementation; conceptual schema/layout are recovered |
 | O-09 | Default metadata provider and artwork policy | Integration/media design |
-| O-10 | Specific FOSS license | Before publication/release |
 | O-11 | Detailed map/trainer providers, compatibility and native features | Future Game Tools milestones |
 | O-12 | Final layouts, accessibility target and personal visual reference | UI design; dark-first/Details View direction is confirmed |
 

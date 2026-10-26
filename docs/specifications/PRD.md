@@ -13,6 +13,8 @@ Revision: reconciled 2026-10-25 against the original [Game Manager Annotations R
 **Status:** Initial requirements baseline  
 **Date:** October 25, 2026
 
+**Software license:** `GPL-3.0-or-later` — GNU GPL version 3 or, at the recipient's option, any later version; see [LICENSE](../../LICENSE) and [ADR-006](../decisions/ADR-006-software-license.md).
+
 ---
 
 ## 1. Product vision
@@ -39,7 +41,7 @@ Performance, reliability, data ownership, and visual quality are foundational pr
 4. **Modular:** Internal services, game adapters, and deployment backends remain independently maintainable.
 5. **User control:** Automation should be available without removing manual control.
 6. **Visual quality:** A coherent, polished interface with room for increasingly elaborate presentation.
-7. **Open source:** Community contributions are encouraged, with third-party extensions planned for future versions.
+7. **Open source:** Original software code uses `GPL-3.0-or-later`, preserving source availability for distributed derivatives under the license terms. Community contributions are encouraged, with third-party extensions planned for future versions. Third-party dependencies and external content, including artwork, mods, ROMs, trainers and maps, retain their own licenses and are not automatically relicensed by Game Manager. License compatibility and distribution obligations must be reviewed before bundling third-party material or designing extension distribution.
 
 ## 3. Target environment
 
