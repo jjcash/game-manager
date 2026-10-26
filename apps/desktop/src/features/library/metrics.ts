@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 export interface Metrics {
   started: number;
+  criteriaStarted?: number;
+  criteriaVisibleMs?: number;
+  counts: number[];
+  metadataRequests: number[];
   infoMs?: number;
   usableMs?: number;
   requests: number[];
@@ -19,6 +23,8 @@ export interface Metrics {
 export function createMetrics(): Metrics {
   return {
     started: performance.now(),
+    counts: [],
+    metadataRequests: [],
     requests: [],
     database: [],
     commits: [],

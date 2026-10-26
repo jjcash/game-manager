@@ -1,32 +1,32 @@
 # Project Status
 
-Last verification: 2026-10-26. See [M0.1 evidence](development/M0.1_VERIFICATION.md), [M0.1.1 CI verification](development/M0.1.1_CI_VERIFICATION.md), [M0.2 database evidence](development/M0.2_VERIFICATION.md), and [M0.3 frontend verification and measurements](development/M0.3_VERIFICATION.md).
+Last verification: 2026-10-26. See [M0.1 evidence](development/M0.1_VERIFICATION.md), [M0.1.1 CI verification](development/M0.1.1_CI_VERIFICATION.md), [M0.2 database evidence](development/M0.2_VERIFICATION.md), [M0.3 frontend evidence](development/M0.3_VERIFICATION.md), and [M0.4 search/filter/sort verification](development/M0.4_VERIFICATION.md).
 
 ## Actual state
 
-**M0.1, M0.2 and M0.3 are complete within their verified scope.** The native shell now includes a real Rust/SQLite-backed virtualized Details View, bounded page caching, keyboard/mouse selection and development diagnostics. Release frontend scenarios passed twice at 500, 12,320, 15,000 and 25,000 games. M0 remains incomplete: artwork, search/filtering, concurrent background work, HDD/lower-memory and long-session validation remain pending. M0.4 has not started.
+**M0.1 through M0.4 are complete within their verified scope.** The native virtualized Details View now supports Rust/SQLite title search, installation/source/year filters and stable title/release sorting. All 72 native query scenarios passed across 500, 12,320, 15,000 and 25,000 games, alongside the original browsing comparison. M0 remains incomplete: artwork, background load, HDD/lower-memory and long-session validation are pending. Stress-count costs and occasional long frames remain measured limitations. M0.5 has not started.
 
 Historical prototype checkmarks were accidental and explicitly withdrawn by the user. They remain invalid; the progress below comes from the current implementation and checks. Specifications and ADRs retain their planning baseline; this file governs current completion claims.
 
-| Area                                                     | Current status                                                                                                                   |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| PRD                                                      | Original detailed baseline recovered and reconciled with later decisions                                                         |
-| TAS                                                      | Accepted architectural baseline recovered; implementation sketches still need validation                                         |
-| DSS                                                      | Original design retained; initial four-entity prototype translated into tested migration version 1                               |
-| MDRS                                                     | Original detailed protocol recovered; architectural safety direction accepted, protocol remains proposed                         |
-| Repository ADRs                                          | ADR-001–005 reconciled; historical labels mapped; ADR-006 accepts GPL-3.0-or-later                                               |
-| Software license                                         | GPL-3.0-or-later accepted; root LICENSE, manifest metadata and first-party SPDX notices added                                    |
-| Desktop app and UI                                       | Dark Tauri shell plus actual virtualized Details View; Mods/Settings remain placeholders                                         |
-| Frontend-backend communication                           | Original probe plus typed status/page/info/window commands; native data and error states verified                                |
-| Development quality checks                               | Frozen install, TypeScript, lint, formatting, 19 frontend/18 Rust tests and production frontend/native build passed              |
-| SQLite database/migrations                               | M0.2 complete: SQLx/SQLite, versioned migration, purpose separation, WAL/FK bounded pool, status/count/page services             |
-| Details View/grid and artwork pipeline                   | M0.3 Details View verified; cover grid and artwork not implemented                                                               |
-| M0 prototype and benchmarks                              | Shell/SQLite/Details View complete; database scales through 25,000 and four frontend scales measured; wider M0 gate remains open |
-| Store imports, launching and activity                    | Not implemented                                                                                                                  |
-| Mod adapters, deployment and recovery                    | Not implemented or tested                                                                                                        |
-| Continuous integration                                   | M0.1.1 workflow valid; all equivalent local checks passed; first successful GitHub run still required                            |
-| Installer, updater and release pipeline                  | Not established                                                                                                                  |
-| Game Tools, companion, dashboards, extension marketplace | Deferred                                                                                                                         |
+| Area                                                     | Current status                                                                                                       |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| PRD                                                      | Original detailed baseline recovered and reconciled with later decisions                                             |
+| TAS                                                      | Accepted architectural baseline recovered; implementation sketches still need validation                             |
+| DSS                                                      | Original design retained; initial four-entity prototype translated into tested migration version 1                   |
+| MDRS                                                     | Original detailed protocol recovered; architectural safety direction accepted, protocol remains proposed             |
+| Repository ADRs                                          | ADR-001–005 reconciled; historical labels mapped; ADR-006 accepts GPL-3.0-or-later                                   |
+| Software license                                         | GPL-3.0-or-later accepted; root LICENSE, manifest metadata and first-party SPDX notices added                        |
+| Desktop app and UI                                       | Dark Tauri shell and virtualized Details View with search/filter/sort; Mods/Settings remain placeholders             |
+| Frontend-backend communication                           | Original probes/page commands retained; typed criteria/count/window IPC and runtime validation verified              |
+| Development quality checks                               | Frozen install, TypeScript, lint, formatting, 24 frontend/23 Rust tests and production frontend/native builds passed |
+| SQLite database/migrations                               | M0.2 complete: SQLx/SQLite, versioned migration, purpose separation, WAL/FK bounded pool, status/count/page services |
+| Details View/grid and artwork pipeline                   | M0.4 searchable/filterable/sortable Details View verified; cover grid/artwork not implemented                        |
+| M0 prototype and benchmarks                              | Shell/SQLite/Details View/query prototype complete; broader M0 gate and stress limitations remain open               |
+| Store imports, launching and activity                    | Not implemented                                                                                                      |
+| Mod adapters, deployment and recovery                    | Not implemented or tested                                                                                            |
+| Continuous integration                                   | M0.1.1 workflow valid; all equivalent local checks passed; first successful GitHub run still required                |
+| Installer, updater and release pipeline                  | Not established                                                                                                      |
+| Game Tools, companion, dashboards, extension marketplace | Deferred                                                                                                             |
 
 ## M0.1 implementation and evidence
 
@@ -66,9 +66,19 @@ All 19 frontend and 18 Rust tests passed, as did frozen installation, TypeScript
 
 Native accessibility/visual inspection showed the real 15,000-game grid and successful original Rust probe. A separate missing-database launch displayed a structured database error, retained the backend probe and created no database; the native retry click could not be completed because automation reported unavailable coordinate geometry. Frontend retry tests pass. Physical Windows scale changes, controlled OS-cold startup, HDD/lower-memory hardware and sustained memory trends are untested. Exact environment, measurements, earlier failed driver attempts and file inventory are in [M0.3 verification](development/M0.3_VERIFICATION.md). No commit or push was performed.
 
+## M0.4 implementation and evidence
+
+The existing Details View now uses typed, bounded Rust/SQLite title substring queries with composable installation/source/inclusive-year filters and title/release ordering in both directions. Canonical IDs remain distinct from memberships/copies; relations do not duplicate rows. Search debounces 150 ms, controls retain focus, criteria edits clear selection/reset scrolling, placeholder metadata preserves source options while old results stay hidden, and count/page work shares one request gate. Cache occupancy remains bounded to six page entries.
+
+FTS5 trigram was measured against literal LIKE using bundled SQLite at all four required sizes. M0.4 retains LIKE for consistent short/punctuation substrings and documents ASCII-only folding/non-ASCII exact matching. No dependency, schema, migration or index was added. The first correlated installation-count plan was slow; a measured membership-query rewrite reduced count-plus-page p95 at 15,000 from 295.17 to 101.24 ms and at 25,000 from 592.42 to 262.10 ms, preserving counts in all 56 database cases. Stress installed/not-installed/combined costs still exceed provisional targets; no universal latency guarantee is claimed.
+
+All 24 frontend and 23 Rust tests, frozen installation, TypeScript, ESLint, Prettier/rustfmt, warnings-denied Clippy, production frontend and native builds passed. The final native matrix passed 72 scenarios with at most 26 mounted rows, six cached pages and one active native library request. At 15,000, text criteria commits including debounce reached about 203 ms; non-text commits about 137 ms. Two ordinary-browsing comparison runs retained frame p95 11.1 ms and had no >50 ms intervals, but broader query runs still recorded long intervals overlapping JavaScript long tasks. The issue is not declared resolved. Memory results are short point samples, not leak validation.
+
+See [M0.4 verification](development/M0.4_VERIFICATION.md) for exact semantics, IPC, plans, all timing tables, M0.3 comparison, source-option/virtualizer regression fixes, earlier failures and limits. Normal user databases and real game files were untouched. No commit/push or M0.5 implementation was performed.
+
 ## Recommended next separately authorized task
 
-M0.4, with its scope agreed before implementation: carry forward the bounded query/selection/cache baseline, define revision behavior before future search/filter/sort or mutation work, and investigate IPC tail latency and long-frame sources. Do not begin automatically. M0.1.1's first successful GitHub run remains undocumented here; no new CI run or branch-protection enforcement is claimed. Store integrations, jobs, artwork, mod deployment and other later features remain outside M0.3.
+Review the M0.4 stress-count and long-task findings, then separately authorize M0.5's bounded synthetic-thumbnail prototype with cache/decode/corrupt-image and query-under-artwork-load checks. Preserve the current query/cancellation/bounds tests. HDD, lower-memory, physical scaling and sustained-memory evidence remain open. Do not begin automatically. No new GitHub CI run or branch-protection enforcement is claimed by this task.
 
 ## Genuine remaining work
 

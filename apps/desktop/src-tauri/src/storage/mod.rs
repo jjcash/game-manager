@@ -8,6 +8,9 @@ use std::{
     time::Duration,
 };
 
+pub mod query;
+#[cfg(feature = "benchmarks")]
+mod search_evaluation;
 #[cfg(any(feature = "benchmarks", test))]
 pub mod synthetic;
 
@@ -151,7 +154,7 @@ pub struct GameSummary {
 }
 
 /// Details View projection: no descriptions, artwork, or installation paths.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryRow {
     pub id: String,
@@ -169,6 +172,20 @@ pub struct LibraryWindow {
     pub offset: u32,
     pub items: Vec<LibraryRow>,
     pub query_ms: f64,
+}
+
+impl From<GameSummary> for LibraryRow {
+    fn from(row: GameSummary) -> Self {
+        Self {
+            id: row.id,
+            title: row.title,
+            release_date: row.release_date,
+            source_names: row.source_names,
+            entry_count: row.entry_count,
+            installation_count: row.installation_count,
+            installed: row.installed,
+        }
+    }
 }
 
 // Limit before correlated aggregates: work and response size follow the page, not the library.
@@ -238,15 +255,7 @@ impl Database {
             .page(request)
             .await?
             .into_iter()
-            .map(|row| LibraryRow {
-                id: row.id,
-                title: row.title,
-                release_date: row.release_date,
-                source_names: row.source_names,
-                entry_count: row.entry_count,
-                installation_count: row.installation_count,
-                installed: row.installed,
-            })
+            .map(LibraryRow::from)
             .collect();
         Ok(LibraryWindow {
             offset: request.offset,
@@ -427,7 +436,15 @@ fn page_sql(sort: SummarySort) -> String {
         SummarySort::Title => (TITLE_PAGE, "g.sort_title, g.id"),
         SummarySort::ReleaseDate => (RELEASE_PAGE, "g.release_date, g.id"),
     };
-    format!("WITH page AS MATERIALIZED ({page}) SELECT g.id, g.title, g.release_date, g.genre, g.developer, g.favorite,
+    format!(
+        "WITH page AS MATERIALIZED ({page}) {}",
+        summary_projection(order)
+    )
+}
+
+fn summary_projection(order: &str) -> String {
+    // Order comes only from private allowlisted sort fragments. Values remain bound.
+    format!("SELECT g.id, g.title, g.release_date, g.genre, g.developer, g.favorite,
             COALESCE((SELECT group_concat(display_name, ', ') FROM (SELECT DISTINCT s.display_name FROM library_entries e JOIN library_sources s ON s.id = e.source_id WHERE e.game_id = g.id ORDER BY s.display_name)), '') AS source_names,
             (SELECT count(*) FROM library_entries e WHERE e.game_id = g.id) AS entry_count,
             (SELECT count(*) FROM library_entries e JOIN game_installations i ON i.entry_id = e.id WHERE e.game_id = g.id) AS installation_count,

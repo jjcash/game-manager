@@ -10,6 +10,7 @@ fn main() {
             "library_get_page",
             "library_get_info",
             "library_get_window",
+            "library_query",
         ]),
     ))
     .expect("could not generate Game Manager's Tauri build context");

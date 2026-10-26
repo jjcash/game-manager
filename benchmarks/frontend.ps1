@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory = $true)][string]$DatabaseDirectory,
     [Parameter(Mandatory = $true)][string]$ResultsDirectory,
     [int[]]$Sizes = @(500, 12320, 15000, 25000),
-    [int]$Runs = 2
+    [int]$Runs = 2,
+    [switch]$QueryScenarios
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
@@ -18,6 +19,7 @@ New-Item -ItemType Directory -Path $resultsRoot | Out-Null
 $savedDatabase = $env:GAME_MANAGER_BENCHMARK_DB
 $savedArguments = $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
 $savedProfile = $env:WEBVIEW2_USER_DATA_FOLDER
+$savedDataRoot = $env:GAME_MANAGER_DATA_DIR
 function Get-AppMemory([int]$RootId) {
     $processes = Get-CimInstance Win32_Process
     $ids = @($RootId)
@@ -31,6 +33,8 @@ function Get-AppMemory([int]$RootId) {
 try {
     $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9223 --remote-debugging-address=127.0.0.1'
     $env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $resultsRoot 'webview-profile'
+    # Even an accidentally ordinary build must not open the user's normal DB.
+    $env:GAME_MANAGER_DATA_DIR = Join-Path $resultsRoot 'application-fallback'
     foreach ($size in $Sizes) {
         if ($size -notin @(500, 2000, 5000, 12320, 15000, 25000)) { throw "Unsupported size: $size" }
         $database = Join-Path $databaseRoot "synthetic-v1-seed-42-$size.sqlite3"
@@ -40,7 +44,7 @@ try {
             $env:GAME_MANAGER_BENCHMARK_DB = $database
             $appProcess = Start-Process -FilePath $executable -WindowStyle Hidden -PassThru -RedirectStandardError (Join-Path $resultsRoot "$size-$run.stderr.txt")
             try {
-                & node (Join-Path $PSScriptRoot 'frontend.mjs') 'http://127.0.0.1:9223' (Join-Path $resultsRoot "$size-$run.json")
+                & node (Join-Path $PSScriptRoot $(if ($QueryScenarios) {'frontend-query.mjs'} else {'frontend.mjs'})) 'http://127.0.0.1:9223' (Join-Path $resultsRoot "$size-$run.json")
                 if ($LASTEXITCODE -ne 0) { throw "Frontend scenario failed for $size run $run" }
                 Get-AppMemory $appProcess.Id | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $resultsRoot "$size-$run.memory.json")
             } finally {
@@ -55,4 +59,5 @@ try {
     $env:GAME_MANAGER_BENCHMARK_DB = $savedDatabase
     $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = $savedArguments
     $env:WEBVIEW2_USER_DATA_FOLDER = $savedProfile
+    $env:GAME_MANAGER_DATA_DIR = $savedDataRoot
 }

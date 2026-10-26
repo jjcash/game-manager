@@ -77,6 +77,29 @@ async fn run() -> storage::Result<()> {
     );
     storage::validate_path(&path)?;
     match action.as_str() {
+        "query-measure" => {
+            let iterations: u32 = options
+                .remove("--iterations")
+                .unwrap_or_else(|| "50".into())
+                .parse()
+                .map_err(invalid)?;
+            if !options.is_empty() || !(1..=10000).contains(&iterations) {
+                return Err(invalid("Invalid iterations/options"));
+            }
+            measure_queries(path, iterations).await?;
+        }
+        "search-evaluate" => {
+            if !options.is_empty() {
+                return Err(invalid("Unknown option"));
+            }
+            let db = storage::Database::benchmark_view(&path).await?;
+            let report = db.evaluate_search().await?;
+            db.close().await;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&report).expect("serializable report")
+            );
+        }
         "generate" => {
             let games = options
                 .remove("--games")
@@ -168,5 +191,162 @@ async fn run() -> storage::Result<()> {
         }
         _ => return Err(invalid("Unknown action; use generate or measure")),
     }
+    Ok(())
+}
+
+async fn measure_queries(path: PathBuf, iterations: u32) -> storage::Result<()> {
+    use storage::query::{Criteria, Direction, InstallationFilter, QueryRequest};
+    let db = storage::Database::benchmark_view(&path).await?;
+    let config = synthetic::dataset_config(&db).await?;
+    let source = db.source_options().await?.first().map(|s| s.id.clone());
+    let cases = vec![
+        ("empty", Criteria::default(), false),
+        (
+            "common",
+            Criteria {
+                search: "chron".into(),
+                ..Default::default()
+            },
+            false,
+        ),
+        (
+            "rare",
+            Criteria {
+                search: "Afterlight 2".into(),
+                ..Default::default()
+            },
+            false,
+        ),
+        (
+            "noMatch",
+            Criteria {
+                search: "no-such-title-xyz".into(),
+                ..Default::default()
+            },
+            false,
+        ),
+        (
+            "unicodeShort",
+            Criteria {
+                search: "\u{661f}\u{306e}".into(),
+                ..Default::default()
+            },
+            false,
+        ),
+        (
+            "punctuation",
+            Criteria {
+                search: "%_\\\"'".into(),
+                ..Default::default()
+            },
+            false,
+        ),
+        (
+            "installed",
+            Criteria {
+                installed: InstallationFilter::Installed,
+                ..Default::default()
+            },
+            false,
+        ),
+        (
+            "notInstalled",
+            Criteria {
+                installed: InstallationFilter::NotInstalled,
+                ..Default::default()
+            },
+            false,
+        ),
+        (
+            "source",
+            Criteria {
+                source_id: source.clone(),
+                ..Default::default()
+            },
+            false,
+        ),
+        (
+            "yearRange",
+            Criteria {
+                year_from: Some(2000),
+                year_to: Some(2001),
+                ..Default::default()
+            },
+            false,
+        ),
+        (
+            "titleDescDeep",
+            Criteria {
+                direction: Direction::Desc,
+                ..Default::default()
+            },
+            true,
+        ),
+        (
+            "releaseAscDeep",
+            Criteria {
+                sort: SummarySort::ReleaseDate,
+                ..Default::default()
+            },
+            true,
+        ),
+        (
+            "releaseDescDeep",
+            Criteria {
+                sort: SummarySort::ReleaseDate,
+                direction: Direction::Desc,
+                ..Default::default()
+            },
+            true,
+        ),
+        (
+            "combined",
+            Criteria {
+                search: "chron".into(),
+                installed: InstallationFilter::Installed,
+                source_id: source,
+                year_from: Some(1990),
+                year_to: Some(2020),
+                sort: SummarySort::ReleaseDate,
+                direction: Direction::Desc,
+            },
+            true,
+        ),
+    ];
+    let mut results = Vec::new();
+    for (name, criteria, deep) in cases {
+        let count = db.query_count(&criteria).await?;
+        let request = QueryRequest {
+            offset: if deep {
+                count.saturating_sub(100).max(0) as u32
+            } else {
+                0
+            },
+            limit: 100,
+            criteria,
+        };
+        let first = db.query_window(&request).await?;
+        let mut counts = Vec::new();
+        let mut pages = Vec::new();
+        let mut combined = Vec::new();
+        for _ in 0..iterations {
+            let start = Instant::now();
+            let found = db.query_count(&request.criteria).await?;
+            let count_ms = start.elapsed().as_secs_f64() * 1000.0;
+            let result = db.query_window(&request).await?;
+            combined.push(start.elapsed().as_secs_f64() * 1000.0);
+            counts.push(count_ms);
+            pages.push(result.query_ms);
+            if found != count
+                || result.items != first.items
+                || result.items.len() != (count - i64::from(request.offset)).clamp(0, 100) as usize
+            {
+                return Err(invalid("Unstable count/window"));
+            }
+        }
+        results.push(serde_json::json!({"name":name,"request":request,"count":count,"countMs":timing(counts),"pageMs":timing(pages),"combinedMs":timing(combined),"plans":db.criteria_plans(&request).await?}));
+    }
+    db.close().await;
+    println!("{}",serde_json::to_string_pretty(&serde_json::json!({"database":path,"config":config,"iterations":iterations,"scenarios":results})).unwrap());
     Ok(())
 }

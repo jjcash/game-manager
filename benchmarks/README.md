@@ -45,3 +45,23 @@ Remote debugging is explicitly enabled for these child processes on loopback por
 Viewport emulation is not physical window resizing or changing Windows display scaling. Programmatic scroll jumps exercise the arbitrary-offset data path but are not physical scrollbar dragging. Frame samples include automation/idle intervals and must not be presented as achieved FPS. Process-tree private bytes are a point-in-time aggregate, not a leak test; summed working sets can double-count shared pages. First and repeated process runs retain the OS filesystem cache. Neither is a controlled cold-disk startup. Build first and wait for other compilation/check work to finish before measuring.
 
 For manual inspection, set `GAME_MANAGER_BENCHMARK_DB` to the existing absolute dataset path and launch a `benchmarks` build. Development diagnostics identify the source/size and offer frame sampling. For actual React Profiler durations, use `pnpm desktop:dev --features benchmarks`; optimized React builds report no render-duration samples. The verification report records native UI automation success/failure separately.
+
+## Search, filter and sort scenarios (M0.4)
+
+Use the same native benchmark build and a **new** output directory:
+
+```powershell
+./benchmarks/frontend.ps1 -DatabaseDirectory E:\dev\game-manager\benchmarks\data\m0.2-2026-10-25-01 -ResultsDirectory E:\dev\game-manager\benchmarks\results\m0.4-native-run-01 -Runs 1 -QueryScenarios
+```
+
+The query driver shares the original CDP transport in `webview.mjs`; default runner behavior still exercises the M0.3 scenarios. Query scenarios cover common/rare/no-match/empty/Unicode/punctuation text, installation complements, source and year combinations, four sorts, loaded deep filtered/sorted rows, rapid search edits, repeated filter switches and ordinary long-distance scrolling. Diagnostics record criteria-to-commit time, native metadata/page latency, backend count/page time and bounded cache/row/request counts. An explicit test-only frame/long-task observer spans criteria generations; it stores bounded samples and no FPS estimate. DOM event-driven control changes are automated inputs, not physical typing/dragging claims.
+
+For database-only plans/timings using the locked SQLx/bundled SQLite engine:
+
+```powershell
+cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml --bin library-bench --features benchmarks --release --locked
+./apps/desktop/src-tauri/target/release/library-bench.exe query-measure --database E:\dev\game-manager\benchmarks\data\m0.2-2026-10-25-01\synthetic-v1-seed-42-15000.sqlite3 --iterations 50
+./apps/desktop/src-tauri/target/release/library-bench.exe search-evaluate --database E:\dev\game-manager\benchmarks\data\m0.2-2026-10-25-01\synthetic-v1-seed-42-15000.sqlite3
+```
+
+`query-measure` returns counts, stable-window comparisons, count/page/combined distributions and actual plans for 14 scenarios, including deep offsets. `search-evaluate` compares LIKE and FTS5 trigram on one connection's freshly built TEMP table, discarding one warm-up before 50 samples; creation cost is excluded. Both open the main benchmark database read-only and do not run migrations. FTS TEMP data is a disposable experiment, not a maintained production index. Run at 500, 12,320, 15,000 and 25,000, with no competing compilation/tests for final measurements. Retain machine/cache state and comparison limitations with results; see [M0.4 verification](../docs/development/M0.4_VERIFICATION.md).
