@@ -17,9 +17,9 @@
     "format": "prettier --write . && cargo fmt --manifest-path src-tauri/Cargo.toml",
     "format:check": "prettier --check . && cargo fmt --manifest-path src-tauri/Cargo.toml --check",
     "lint": "eslint . --max-warnings 0",
-    "lint:rust": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings",
+    "lint:rust": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features --locked -- -D warnings",
     "test": "vitest run",
-    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml --locked",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml --all-features --locked",
     "preview": "vite preview",
     "tauri": "tauri"
   },

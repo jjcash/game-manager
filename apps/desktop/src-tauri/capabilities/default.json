@@ -1,7 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Local main window; only the read-only application status command is exposed",
+  "description": "Local main window; narrow read-only application and library status/page commands",
   "windows": ["main"],
-  "permissions": ["allow-app-get-status"]
+  "permissions": [
+    "allow-app-get-status",
+    "allow-database-get-status",
+    "allow-library-get-page"
+  ]
 }

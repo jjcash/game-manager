@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { Section } from "../App";
 
 const paths: Record<Section, string> = {

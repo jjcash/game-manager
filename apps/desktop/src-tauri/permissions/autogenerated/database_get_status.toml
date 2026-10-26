@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-database-get-status"
+description = "Enables the database_get_status command without any pre-configured scope."
+commands.allow = ["database_get_status"]
+
+[[permission]]
+identifier = "deny-database-get-status"
+description = "Denies the database_get_status command without any pre-configured scope."
+commands.deny = ["database_get_status"]
