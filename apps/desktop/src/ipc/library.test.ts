@@ -36,7 +36,14 @@ describe("library IPC", () => {
   });
   it("distinguishes empty data, structured failure and connection failure", async () => {
     vi.mocked(invoke)
-      .mockResolvedValueOnce({ total: 0, source: "Local", diagnostics: false })
+      .mockResolvedValueOnce({
+        total: 0,
+        libraryTotal: 0,
+        sources: [],
+        queryMs: 0,
+        source: "Local",
+        diagnostics: false,
+      })
       .mockRejectedValueOnce({ code: "MIGRATION", message: "Preserved" })
       .mockRejectedValueOnce("offline");
     expect((await getLibraryInfo()).total).toBe(0);

@@ -13,6 +13,7 @@ import {
   useQueries,
   useQuery,
   useQueryClient,
+  keepPreviousData,
 } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -20,6 +21,8 @@ import {
   getLibraryWindow,
   LibraryError,
   type LibraryRow,
+  type LibraryCriteria,
+  defaultCriteria,
 } from "../../ipc/library";
 import {
   createLibraryClient,
@@ -31,6 +34,7 @@ import {
 } from "./cache";
 import { pageGate } from "./requestGate";
 import { useLibraryUI } from "./state";
+import { LibraryControls } from "./LibraryControls";
 import { Diagnostics } from "./Diagnostics";
 import { createMetrics, sample, type Metrics } from "./metrics";
 
@@ -38,6 +42,28 @@ export function LibraryView() {
   const [client] = useState(createLibraryClient);
   const [generation, setGeneration] = useState(0);
   const [metrics, setMetrics] = useState(createMetrics);
+  const criteria = useLibraryUI((s) => s.criteria);
+  const [applied, setApplied] = useState(criteria);
+  const appliedRef = useRef(criteria);
+  const pendingCriteria = criteria !== applied;
+  useEffect(() => {
+    if (criteria === appliedRef.current) return;
+    void client.cancelQueries();
+    client.clear();
+    const timer = setTimeout(
+      () => {
+        appliedRef.current = criteria;
+        setApplied(criteria);
+        setMetrics({
+          ...createMetrics(),
+          criteriaStarted: useLibraryUI.getState().criteriaChangedAt,
+        });
+        setGeneration((n) => n + 1);
+      },
+      criteria.search !== appliedRef.current.search ? 150 : 0,
+    );
+    return () => clearTimeout(timer);
+  }, [criteria, client]);
   useEffect(() => () => client.clear(), [client]);
   function refresh() {
     void client.cancelQueries();
@@ -47,7 +73,13 @@ export function LibraryView() {
   }
   return (
     <QueryClientProvider client={client}>
-      <Library generation={generation} metrics={metrics} refresh={refresh} />
+      <Library
+        generation={generation}
+        metrics={metrics}
+        refresh={refresh}
+        criteria={applied}
+        pendingCriteria={pendingCriteria}
+      />
     </QueryClientProvider>
   );
 }
@@ -56,19 +88,42 @@ function Library({
   generation,
   metrics,
   refresh,
+  criteria,
+  pendingCriteria,
 }: {
   generation: number;
   metrics: Metrics;
   refresh: () => void;
+  criteria: LibraryCriteria;
+  pendingCriteria: boolean;
 }) {
   const client = useQueryClient();
   const info = useQuery({
-    queryKey: ["info", generation],
-    queryFn: async () => {
-      const result = await getLibraryInfo();
-      metrics.infoMs = performance.now() - metrics.started;
-      return result;
-    },
+    queryKey: ["info", generation, criteria],
+    placeholderData: keepPreviousData, // retain source options; never render placeholder counts/rows
+    enabled: !pendingCriteria,
+    queryFn: ({ signal }) =>
+      pageGate.run(signal, async () => {
+        const started = performance.now();
+        metrics.active++;
+        metrics.maxActive = Math.max(metrics.maxActive, metrics.active);
+        try {
+          const result = await getLibraryInfo(
+            JSON.stringify(criteria) === JSON.stringify(defaultCriteria)
+              ? undefined
+              : criteria,
+          );
+          metrics.infoMs = performance.now() - metrics.started;
+          if (!signal.aborted && result.diagnostics) {
+            sample(metrics.metadataRequests, performance.now() - started);
+            if (result.queryMs !== undefined)
+              sample(metrics.counts, result.queryMs);
+          }
+          return result;
+        } finally {
+          metrics.active--;
+        }
+      }),
     retry: (count, error) =>
       error instanceof LibraryError && error.code === "NOT_READY" && count < 20,
     retryDelay: 100,
@@ -83,37 +138,57 @@ function Library({
   useLayoutEffect(() => {
     const element = scrollRef.current;
     return () => {
-      if (element) useLibraryUI.getState().scroll(element.scrollTop);
+      if (element && useLibraryUI.getState().criteria === criteria)
+        useLibraryUI.getState().scroll(element.scrollTop);
     };
-  }, [info.isSuccess, total]);
+  }, [info.isSuccess, total, criteria]);
   // No React Compiler is configured. Read this mutable instance each render;
   // memoized rows receive only immutable DTOs and primitive positions.
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual's documented API is intentionally mutable.
   const virtualizer = useVirtualizer({
+    enabled: !pendingCriteria && info.isSuccess && !info.isPlaceholderData,
     count: total,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_HEIGHT,
     overscan: OVERSCAN,
     initialOffset: () => useLibraryUI.getState().scrollOffset,
   });
+  const positionedCriteria = useRef(criteria);
+  useLayoutEffect(() => {
+    if (
+      info.isSuccess &&
+      !info.isPlaceholderData &&
+      positionedCriteria.current !== criteria
+    ) {
+      virtualizer.scrollToOffset(0);
+      positionedCriteria.current = criteria;
+    }
+  }, [criteria, info.isSuccess, info.isPlaceholderData, virtualizer]);
   const rows = virtualizer.getVirtualItems();
   const first = rows[0]?.index ?? 0;
   const last = rows[rows.length - 1]?.index ?? 0;
   const firstPage = Math.floor(first / PAGE_SIZE);
   const lastPage = Math.floor(last / PAGE_SIZE);
-  const pageNumbers = total
-    ? Array.from({ length: lastPage - firstPage + 1 }, (_, i) => firstPage + i)
-    : [];
+  const pageNumbers =
+    total && !pendingCriteria && !info.isPlaceholderData
+      ? Array.from(
+          { length: lastPage - firstPage + 1 },
+          (_, i) => firstPage + i,
+        )
+      : [];
   const pages = useQueries({
     queries: pageNumbers.map((page) => ({
-      queryKey: ["page", generation, page],
+      queryKey: ["page", generation, criteria, page],
       queryFn: ({ signal }: { signal: AbortSignal }) =>
         pageGate.run(signal, async () => {
           const started = performance.now();
           metrics.active++;
           metrics.maxActive = Math.max(metrics.maxActive, metrics.active);
           try {
-            const result = await getLibraryWindow(page * PAGE_SIZE, PAGE_SIZE);
+            const result = await (JSON.stringify(criteria) ===
+            JSON.stringify(defaultCriteria)
+              ? getLibraryWindow(page * PAGE_SIZE, PAGE_SIZE)
+              : getLibraryWindow(page * PAGE_SIZE, PAGE_SIZE, criteria));
             if (
               result.items.length !==
               Math.min(PAGE_SIZE, total - page * PAGE_SIZE)
@@ -173,10 +248,25 @@ function Library({
     metrics.maxMounted = Math.max(metrics.maxMounted, rows.length);
     if (
       metrics.usableMs === undefined &&
+      !pendingCriteria &&
       info.isSuccess &&
-      (total === 0 || rows.some((r) => rowAt(r.index)))
-    )
+      !info.isPlaceholderData &&
+      (total === 0 ||
+        (metrics.visible > 0 &&
+          rows
+            .filter(
+              (r) =>
+                r.end > (virtualizer.scrollOffset ?? 0) &&
+                r.start <
+                  (virtualizer.scrollOffset ?? 0) +
+                    (virtualizer.scrollRect?.height ?? 0),
+            )
+            .every((r) => rowAt(r.index))))
+    ) {
       metrics.usableMs = performance.now() - metrics.started;
+      if (metrics.criteriaStarted !== undefined)
+        metrics.criteriaVisibleMs = performance.now() - metrics.criteriaStarted;
+    }
   });
   function keyboard(e: KeyboardEvent<HTMLDivElement>) {
     const current = selection?.index ?? 0;
@@ -199,7 +289,8 @@ function Library({
     virtualizer.scrollToIndex(index, { align: "auto" });
   }
   const error = info.error ?? pages.find((p) => p.error)?.error;
-  const busy = info.isPending || pages.some((p) => p.isFetching);
+  const busy =
+    info.isPending || info.isPlaceholderData || pages.some((p) => p.isFetching);
   const table = (
     <div
       ref={gridRef}
@@ -220,10 +311,35 @@ function Library({
       aria-colcount={4}
     >
       <div className="library-columns" role="row" aria-rowindex={1}>
-        <span role="columnheader" aria-sort="ascending">
-          Game title ↑
+        <span
+          role="columnheader"
+          aria-sort={
+            criteria.sort === "title"
+              ? criteria.direction === "asc"
+                ? "ascending"
+                : "descending"
+              : "none"
+          }
+        >
+          Game title{" "}
+          {criteria.sort === "title"
+            ? criteria.direction === "asc"
+              ? "↑"
+              : "↓"
+            : ""}
         </span>
-        <span role="columnheader">Release</span>
+        <span
+          role="columnheader"
+          aria-sort={
+            criteria.sort === "releaseDate"
+              ? criteria.direction === "asc"
+                ? "ascending"
+                : "descending"
+              : "none"
+          }
+        >
+          Release
+        </span>
         <span role="columnheader">Library source</span>
         <span role="columnheader">Installation</span>
       </div>
@@ -262,26 +378,43 @@ function Library({
     </div>
   );
   return (
-    <section className="library-panel" aria-label="Details View">
+    <section
+      className="library-panel"
+      aria-label="Details View"
+      data-query-key={JSON.stringify(criteria)}
+      data-query-ready={
+        !pendingCriteria &&
+        info.isSuccess &&
+        !info.isPlaceholderData &&
+        !busy &&
+        !error
+      }
+      data-result-count={total}
+    >
       <div className="library-toolbar">
         <div>
           <strong>All games</strong>
           <span className="muted">
             {" "}
-            {info.data
-              ? `${total.toLocaleString()} titles`
-              : "Connecting to library…"}
+            {pendingCriteria || info.isPlaceholderData
+              ? "Updating criteria…"
+              : info.data
+                ? `${total.toLocaleString()} titles${info.data.libraryTotal !== undefined ? ` / ${info.data.libraryTotal.toLocaleString()} in library` : ""}`
+                : info.isError
+                  ? "Library unavailable"
+                  : "Connecting to library…"}
           </span>
         </div>
         <button className="check-button" onClick={refresh}>
           Refresh library
         </button>
       </div>
+      <LibraryControls sources={info.data?.sources} />
       <p id="library-help" className="library-help">
-        Details View · Title order · Arrow keys to select · Home / End · Page Up
-        / Down
+        Details View · SQLite ordering · Arrow keys to select · Home / End ·
+        Page Up / Down
       </p>
-      {error && (
+      {!pendingCriteria && error && (
         <div className="library-error" role="alert">
           {error instanceof LibraryError ? `${error.code}: ` : ""}
           {error.message}{" "}
@@ -302,12 +435,21 @@ function Library({
         </div>
       )}
       {info.isPending && <p className="library-message">Loading library…</p>}
-      {info.isSuccess && total === 0 && (
-        <p className="library-message">
-          Your library is empty. No games have been added.
-        </p>
-      )}
-      {info.isSuccess &&
+      {!pendingCriteria &&
+        info.isSuccess &&
+        !info.isPlaceholderData &&
+        total === 0 && (
+          <p className="library-message">
+            {info.data.libraryTotal === 0 ||
+            (info.data.libraryTotal === undefined &&
+              JSON.stringify(criteria) === JSON.stringify(defaultCriteria))
+              ? "Your library is empty. No games have been added."
+              : "No games match these criteria. Clear search or reset filters."}
+          </p>
+        )}
+      {!pendingCriteria &&
+        info.isSuccess &&
+        !info.isPlaceholderData &&
         total > 0 &&
         (info.data.diagnostics && import.meta.env.DEV ? (
           <Profiler
@@ -322,13 +464,15 @@ function Library({
           table
         ))}
       <div className="library-status" aria-live="polite">
-        {error
-          ? "Library unavailable"
-          : busy
-            ? "Loading visible rows…"
-            : selection?.id
-              ? "1 game selected"
-              : "Ready to browse"}
+        {pendingCriteria || info.isPlaceholderData
+          ? "Updating criteria…"
+          : error
+            ? "Library unavailable"
+            : busy
+              ? "Loading visible rows…"
+              : selection?.id
+                ? "1 game selected"
+                : "Ready to browse"}
         <span>100 rows / page · {MAX_CACHED_PAGES} pages maximum</span>
       </div>
       {info.data?.diagnostics && (

@@ -94,7 +94,8 @@ pub fn run() {
             commands::database_get_status,
             commands::library_get_page,
             commands::library_get_info,
-            commands::library_get_window
+            commands::library_get_window,
+            commands::library_query
         ])
         .run(tauri::generate_context!())
         .expect("Game Manager could not start its desktop runtime");

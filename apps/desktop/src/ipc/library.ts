@@ -5,7 +5,28 @@ export interface LibraryInfo {
   total: number;
   source: string;
   diagnostics: boolean;
+  libraryTotal: number;
+  sources: { id: string; name: string }[];
+  queryMs: number;
 }
+export interface LibraryCriteria {
+  search: string;
+  installed: "all" | "installed" | "notInstalled";
+  sourceId: string | null;
+  yearFrom: number | null;
+  yearTo: number | null;
+  sort: "title" | "releaseDate";
+  direction: "asc" | "desc";
+}
+export const defaultCriteria: LibraryCriteria = {
+  search: "",
+  installed: "all",
+  sourceId: null,
+  yearFrom: null,
+  yearTo: null,
+  sort: "title",
+  direction: "asc",
+};
 export interface LibraryRow {
   id: string;
   title: string;
@@ -32,6 +53,28 @@ const record = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
 const integer = (v: unknown): v is number =>
   typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
+function validateCriteria(criteria: LibraryCriteria) {
+  if (
+    [criteria.yearFrom, criteria.yearTo].some(
+      (y) => y !== null && (!integer(y) || y < 1 || y > 9999),
+    ) ||
+    (criteria.yearFrom !== null &&
+      criteria.yearTo !== null &&
+      criteria.yearFrom > criteria.yearTo)
+  )
+    throw new LibraryError(
+      "INVALID_REQUEST",
+      "Use release years 1-9999, with from no later than to.",
+    );
+  if (
+    criteria.search.includes("\0") ||
+    Array.from(criteria.search).length > 200
+  )
+    throw new LibraryError(
+      "INVALID_REQUEST",
+      "Search must be at most 200 characters and contain no NUL.",
+    );
+}
 function fail(): never {
   throw new LibraryError(
     "INVALID_RESPONSE",
@@ -57,8 +100,13 @@ async function call(
     );
   }
 }
-export async function getLibraryInfo(): Promise<LibraryInfo> {
-  const v = await call("library_get_info");
+export async function getLibraryInfo(
+  criteria?: LibraryCriteria,
+): Promise<LibraryInfo> {
+  validateCriteria(criteria ?? defaultCriteria);
+  const v = await call("library_get_info", {
+    criteria: criteria ?? defaultCriteria,
+  });
   if (
     !record(v) ||
     !integer(v.total) ||
@@ -67,11 +115,31 @@ export async function getLibraryInfo(): Promise<LibraryInfo> {
     typeof v.diagnostics !== "boolean"
   )
     fail();
+  if (!integer(v.libraryTotal) || v.libraryTotal < v.total) fail();
+  if (
+    typeof v.queryMs !== "number" ||
+    !Number.isFinite(v.queryMs) ||
+    v.queryMs < 0
+  )
+    fail();
+  if (
+    !Array.isArray(v.sources) ||
+    v.sources.length > 100 ||
+    v.sources.some(
+      (s) =>
+        !record(s) ||
+        typeof s.id !== "string" ||
+        !s.id ||
+        typeof s.name !== "string",
+    )
+  )
+    fail();
   return v as unknown as LibraryInfo;
 }
 export async function getLibraryWindow(
   offset: number,
   limit: number,
+  criteria?: LibraryCriteria,
 ): Promise<LibraryWindow> {
   if (
     !integer(offset) ||
@@ -81,8 +149,9 @@ export async function getLibraryWindow(
     limit > 200
   )
     throw new LibraryError("INVALID_REQUEST", "Invalid library window bounds.");
-  const v = await call("library_get_window", {
-    request: { offset, limit, sort: "title" },
+  validateCriteria(criteria ?? defaultCriteria);
+  const v = await call("library_query", {
+    request: { offset, limit, criteria: criteria ?? defaultCriteria },
   });
   if (
     !record(v) ||

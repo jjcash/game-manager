@@ -1,14 +1,14 @@
 # Roadmap
 
-Status: **M0 is in progress: M0.1, M0.2 and M0.3 complete; M0.1.1 CI awaits documented GitHub verification.** M0.4 and M1–M5 have not started. See [PROJECT_STATUS](PROJECT_STATUS.md) for verified scope and limitations; frontend measurements do not complete the broader M0 gate.
+Status: **M0 is in progress: M0.1 through M0.4 complete within their verified scope; M0.1.1 CI awaits documented GitHub verification.** M0.5 and M1-M5 have not started. See [PROJECT_STATUS](PROJECT_STATUS.md) for measured limitations; the wider performance gate remains open.
 
 ## M0 — Performance-validation prototype
 
 - [x] Tauri desktop window with one dark theme — M0.1 native window and Rust IPC verified; see [evidence](development/M0.1_VERIFICATION.md).
 - [x] SQLite database with 15,000 realistic synthetic game records — M0.2 also verifies 500, 2,000, 5,000, 12,320 and 25,000; see [database evidence](development/M0.2_VERIFICATION.md).
 - [x] Virtualized Details View over actual Rust/SQLite summaries, bounded caching and keyboard navigation — M0.3.
-- [ ] General column sorting UI (M0.3 fixes ascending title order).
-- [ ] Search and filter commands in Rust.
+- [x] Title/release sorting UI in both directions, stable ID ties and explicit NULL handling - M0.4.
+- [x] Rust title substring search plus installation/source/year filters, bounded counts/windows - M0.4.
 - [ ] Realistic thumbnail loading and bounded caching.
 - [ ] Background import simulator with progress and safe cancellation.
 - [ ] Measure startup, scrolling, search, memory and interaction under load.
@@ -55,7 +55,19 @@ M0.3 subsequently connects this service to the actual frontend; see the verified
 - [x] Real native runs twice each at 500, 12,320, 15,000 and 25,000; actual end rows, wheel/rapid/distributed scrolling, selection, return navigation and emulated viewport/scaling.
 - [x] Record timing/frame/memory evidence and limitations; inspect native 15,000-game UI and missing-database failure without creating a database.
 
-Complete within this scope; see [M0.3 verification](development/M0.3_VERIFICATION.md). Initial usable Library commits measured 113.9–179.6 ms from component creation. Peak mounted rows were 26, retained page entries six and active native page invocations one. IPC tail latency and occasional long frames remain findings to investigate; no FPS, controlled cold-start or sustained-memory target is claimed. Physical Windows scaling, HDD and lower-memory validation remain outstanding. No commit/push or M0.4 work was performed. M0.4 requires separate authorization and an agreed scope.
+Complete within this scope; see [M0.3 verification](development/M0.3_VERIFICATION.md). Initial usable Library commits measured 113.9–179.6 ms from component creation. Peak mounted rows were 26, retained page entries six and active native page invocations one. IPC tail latency and occasional long frames remain findings to investigate; no FPS, controlled cold-start or sustained-memory target is claimed. Physical Windows scaling, HDD and lower-memory validation remain outstanding. No commit/push or M0.4 work was performed during M0.3. M0.4 was subsequently authorized and is recorded below.
+
+### M0.4 - Search, Filtering and Sorting
+
+- [x] Typed validated criteria, parameterized Rust/SQLite predicates, correct canonical counts, bounded stable windows and allowlisted sort directions.
+- [x] Literal substring/case/Unicode/punctuation semantics; benchmark FTS5 trigram against LIKE and document the selected scan-based strategy without a production index/migration.
+- [x] Installation/source/year composition, global canonical summaries, inclusive years and explicit NULL/tie ordering.
+- [x] Debounced accessible controls, reset/clear, distinct empty/no-match/error states, no stale results, focus/selection/scroll handling and bounded cancellation/cache behavior.
+- [x] Pass 24 frontend and 23 Rust tests plus all local quality checks, production frontend/native builds.
+- [x] Fifty-iteration database/plans scenarios at four sizes, 72 native query scenarios, and two 15,000-game M0.3 browsing comparisons.
+- [x] Investigate correlated-count regressions and long frames; retain measured stress limitations rather than claiming every provisional budget achieved.
+
+Complete within this scope; see [M0.4 verification](development/M0.4_VERIFICATION.md). Membership queries reduced the installed count-plus-page p95 from 295.17 to 101.24 ms at 15,000, while 25,000 still reached 262.10 ms. Native bounds remain 26 rows/six pages/one library request. Occasional long query-workload frames, HDD/lower-memory and sustained-memory checks remain open. No artwork/import/job work, commit/push or M0.5 implementation was performed. M0.5 needs separate authorization and scope.
 
 ## M1 — Library foundation
 

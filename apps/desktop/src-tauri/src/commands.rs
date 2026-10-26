@@ -56,15 +56,26 @@ pub struct LibraryInfo {
     total: i64,
     source: String,
     diagnostics: bool,
+    library_total: i64,
+    sources: Vec<crate::storage::query::SourceOption>,
+    query_ms: f64,
 }
 
 #[tauri::command]
 pub async fn library_get_info(
     state: tauri::State<'_, crate::DatabaseState>,
+    criteria: Option<crate::storage::query::Criteria>,
 ) -> crate::storage::Result<LibraryInfo> {
     async {
+        let criteria = criteria.unwrap_or_default();
+        let start = std::time::Instant::now();
+        let total = state.ready()?.query_count(&criteria).await?;
+        let query_ms = start.elapsed().as_secs_f64() * 1000.0;
         Ok(LibraryInfo {
-            total: state.ready()?.counts().await?.games,
+            total,
+            library_total: state.ready()?.counts().await?.games,
+            sources: state.ready()?.source_options().await?,
+            query_ms,
             source: state.source.clone(),
             diagnostics: cfg!(any(debug_assertions, feature = "benchmarks")),
         })
@@ -79,6 +90,16 @@ pub async fn library_get_window(
     request: crate::storage::PageRequest,
 ) -> crate::storage::Result<crate::storage::LibraryWindow> {
     async { state.ready()?.window(&request).await }
+        .await
+        .map_err(public_error)
+}
+
+#[tauri::command]
+pub async fn library_query(
+    state: tauri::State<'_, crate::DatabaseState>,
+    request: crate::storage::query::QueryRequest,
+) -> crate::storage::Result<crate::storage::LibraryWindow> {
+    async { state.ready()?.query_window(&request).await }
         .await
         .map_err(public_error)
 }

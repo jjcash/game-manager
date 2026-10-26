@@ -2,7 +2,7 @@
 
 A free and open-source, local-first Windows desktop game library, launcher, and integrated mod manager in early development. Large-library performance, safe mod operations, and a polished interface are core requirements.
 
-The desktop application in `apps/desktop/` now has a Rust-backed virtualized Details View over the M0.2 SQLite service. It uses bounded pages and caching, keyboard selection, loading/error/retry states, and opt-in synthetic benchmark diagnostics. Mods and Settings remain placeholders. See [project status](docs/PROJECT_STATUS.md) and [M0.3 verification](docs/development/M0.3_VERIFICATION.md) for actual checks, measurements and limitations.
+The desktop application in `apps/desktop/` has a Rust-backed virtualized Details View with title search, installation/source/year filters and title/release sorting. Pages and caching remain bounded, with keyboard selection, loading/error/retry states and opt-in synthetic diagnostics. Mods and Settings remain placeholders. See [project status](docs/PROJECT_STATUS.md) and [M0.4 verification](docs/development/M0.4_VERIFICATION.md) for checks, measurements and limitations.
 
 The [M0.1 verification report](docs/development/M0.1_VERIFICATION.md) records the environment, exact dependency versions, checks, file inventory, and limitations.
 
@@ -143,7 +143,11 @@ The generator supports 500, 2,000, 5,000, 12,320, 15,000 and 25,000 canonical ga
 
 ## Virtualized library and frontend benchmarks
 
-The Details View uses ascending `(sort_title, id)` order, 38 CSS-pixel rows and eight rows of overscan per side. Only viewport pages are requested, with 100 rows per page, six retained pages, and one native page request at a time. Selection and scroll position survive navigation within the session. Arrow keys, Home/End and Page Up/Down navigate the library. Refresh starts a new request generation. There is no general sorting UI in M0.3.
+The Details View uses 38 CSS-pixel rows and eight rows of overscan per side. Only viewport pages are requested: 100 rows per page, six retained pages, and one native library request at a time. Arrow keys, Home/End and Page Up/Down navigate results. Selection and position survive navigation within the session; criteria edits clear selection, reset scrolling and discard unrelated cached pages. Refresh starts a new generation.
+
+Title search is a literal contiguous substring with a 150 ms debounce. Leading/trailing whitespace is trimmed; `%`, `_`, quotes and backslash are data. ASCII matching is case-insensitive; non-ASCII code points match exactly, without normalization or accent folding. Filters compose installation presence, a source membership and inclusive release years. Installation presence applies to any copy of the canonical game, including a copy from another source. Source/copy summaries still describe the whole game. Unknown releases are excluded by year bounds; release ascending puts NULLs first, descending last. Title/release ordering and ID tie-breakers run in SQLite in both directions. Clear search and Reset all are available; empty-library and no-match states are distinct.
+
+M0.4 retains scan-based literal LIKE after measuring it against FTS5 trigram, with existing indexed ordering and relation probes. No production FTS index or schema migration is added. See the verification report for measured costs, query plans, Unicode limits and the reasons to revisit FTS at later scale.
 
 Normal startup never seeds synthetic data. To browse a complete M0.2 benchmark database, opt into the development-only Rust `benchmarks` feature and select an **existing absolute path**:
 
