@@ -6,6 +6,8 @@
   "permissions": [
     "allow-app-get-status",
     "allow-database-get-status",
-    "allow-library-get-page"
+    "allow-library-get-page",
+    "allow-library-get-info",
+    "allow-library-get-window"
   ]
 }

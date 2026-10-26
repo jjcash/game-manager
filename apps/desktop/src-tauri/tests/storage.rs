@@ -494,3 +494,82 @@ mod synthetic_tests {
         assert_eq!(std::fs::metadata(&empty).unwrap().len(), 0);
     }
 }
+
+#[tokio::test]
+async fn details_window_is_bounded_narrow_stable_and_empty_is_success() {
+    let dir = tempdir().unwrap();
+    let db = Database::initialize(&dir.path().join("window.sqlite3"))
+        .await
+        .unwrap();
+    let empty = db.window(&page(100, 0)).await.unwrap();
+    assert!(empty.items.is_empty());
+    for request in [page(0, 0), page(201, 0), page(100, 1_000_001)] {
+        assert_eq!(
+            db.window(&request).await.unwrap_err().code,
+            ErrorCode::InvalidRequest
+        );
+    }
+    db.close().await;
+}
+
+#[cfg(feature = "benchmarks")]
+#[tokio::test]
+async fn benchmark_view_is_read_only_and_refuses_missing_application_and_mismatched_schema() {
+    use storage::synthetic::{DatasetConfig, generate};
+    let dir = tempdir().unwrap();
+    let missing = dir.path().join("missing.sqlite3");
+    assert!(Database::benchmark_view(&missing).await.is_err());
+    assert!(!missing.exists());
+    let normal = dir.path().join("normal.sqlite3");
+    Database::initialize(&normal).await.unwrap().close().await;
+    let before = std::fs::read(&normal).unwrap();
+    assert_eq!(
+        Database::benchmark_view(&normal).await.unwrap_err().code,
+        ErrorCode::WrongPurpose
+    );
+    assert_eq!(std::fs::read(&normal).unwrap(), before);
+    let path = dir.path().join("synthetic.sqlite3");
+    generate(
+        &path,
+        DatasetConfig {
+            games: 500,
+            seed: 42,
+        },
+    )
+    .await
+    .unwrap();
+    let before = std::fs::read(&path).unwrap();
+    let db = Database::benchmark_view(&path).await.unwrap();
+    let first = db.window(&page(200, 0)).await.unwrap();
+    let second = db.window(&page(200, 200)).await.unwrap();
+    let last = db.window(&page(200, 400)).await.unwrap();
+    assert_eq!(
+        (first.items.len(), second.items.len(), last.items.len()),
+        (200, 200, 100)
+    );
+    let ids: std::collections::HashSet<_> = first
+        .items
+        .iter()
+        .chain(&second.items)
+        .chain(&last.items)
+        .map(|r| &r.id)
+        .collect();
+    assert_eq!(ids.len(), 500);
+    let wire = serde_json::to_value(&first).unwrap();
+    assert_eq!(wire["items"][0].as_object().unwrap().len(), 7);
+    assert!(first.query_ms >= 0.0);
+    db.close().await;
+    assert_eq!(std::fs::read(&path).unwrap(), before);
+    let mut c = raw(&path).await;
+    sqlx::query("UPDATE _sqlx_migrations SET checksum=X'00'")
+        .execute(&mut c)
+        .await
+        .unwrap();
+    c.close().await.unwrap();
+    let before = std::fs::read(&path).unwrap();
+    assert_eq!(
+        Database::benchmark_view(&path).await.unwrap_err().code,
+        ErrorCode::Migration
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), before);
+}

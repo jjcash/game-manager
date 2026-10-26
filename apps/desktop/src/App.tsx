@@ -4,6 +4,7 @@ import { useState } from "react";
 import { BackendStatus } from "./components/BackendStatus";
 import { Icon } from "./components/Icon";
 import "./App.css";
+import { LibraryView } from "./features/library/LibraryView";
 
 const sections = {
   Library: {
@@ -74,32 +75,38 @@ export default function App() {
             <h1>{activeSection}</h1>
             <p className="muted mt-2">{section.description}</p>
           </div>
-          <span className="preview-badge">Development preview · M0.1</span>
+          <span className="preview-badge">Development preview · M0.3</span>
         </header>
-        <section
-          className="placeholder-panel"
-          aria-labelledby="placeholder-title"
-        >
-          <div className="panel-heading flex items-center justify-between gap-4">
-            <span className="text-sm font-medium">
-              {activeSection} workspace
-            </span>
-            <span className="placeholder-badge">Placeholder</span>
-          </div>
-          <div className="empty-state">
-            <div className="empty-icon" aria-hidden="true">
-              <Icon name={activeSection} />
+        {activeSection === "Library" ? (
+          <LibraryView />
+        ) : (
+          <section
+            className="placeholder-panel"
+            aria-labelledby="placeholder-title"
+          >
+            <div className="panel-heading flex items-center justify-between gap-4">
+              <span className="text-sm font-medium">
+                {activeSection} workspace
+              </span>
+              <span className="placeholder-badge">Placeholder</span>
             </div>
-            <p className="eyebrow">A FOUNDATION FOR WHAT COMES NEXT</p>
-            <h2 id="placeholder-title">{section.title}</h2>
-            <p className="muted empty-description">{section.detail}</p>
-            <span className="planned-label">Planned · not implemented yet</span>
-          </div>
-        </section>
+            <div className="empty-state">
+              <div className="empty-icon" aria-hidden="true">
+                <Icon name={activeSection} />
+              </div>
+              <p className="eyebrow">A FOUNDATION FOR WHAT COMES NEXT</p>
+              <h2 id="placeholder-title">{section.title}</h2>
+              <p className="muted empty-description">{section.detail}</p>
+              <span className="planned-label">
+                Planned · not implemented yet
+              </span>
+            </div>
+          </section>
+        )}
         <BackendStatus />
         <footer className="page-footer flex flex-wrap justify-between gap-2">
           <span>Game Manager</span>
-          <span>Desktop foundation · No library data loaded</span>
+          <span>Local library · Rust + SQLite</span>
         </footer>
       </main>
     </div>

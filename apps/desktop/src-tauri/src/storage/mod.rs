@@ -150,11 +150,110 @@ pub struct GameSummary {
     pub installed: bool,
 }
 
+/// Details View projection: no descriptions, artwork, or installation paths.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryRow {
+    pub id: String,
+    pub title: String,
+    pub release_date: Option<String>,
+    pub source_names: String,
+    pub entry_count: i64,
+    pub installation_count: i64,
+    pub installed: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryWindow {
+    pub offset: u32,
+    pub items: Vec<LibraryRow>,
+    pub query_ms: f64,
+}
+
 // Limit before correlated aggregates: work and response size follow the page, not the library.
 const TITLE_PAGE: &str = "SELECT id FROM games ORDER BY sort_title, id LIMIT ? OFFSET ?";
 const RELEASE_PAGE: &str = "SELECT id FROM games ORDER BY release_date, id LIMIT ? OFFSET ?";
 
 impl Database {
+    /// Benchmark UI never creates, migrates, checkpoints, or writes the selected file.
+    #[cfg(feature = "benchmarks")]
+    pub async fn benchmark_view(path: &Path) -> Result<Self> {
+        validate_path(path)?;
+        let pool = SqlitePoolOptions::new()
+            .max_connections(POOL_SIZE)
+            .connect_with(
+                SqliteConnectOptions::new()
+                    .filename(path)
+                    .read_only(true)
+                    .foreign_keys(true),
+            )
+            .await?;
+        let db = Self { pool };
+        let purpose: String =
+            sqlx::query_scalar("SELECT purpose FROM database_metadata WHERE singleton = 1")
+                .fetch_one(&db.pool)
+                .await?;
+        if purpose != "benchmark" {
+            return Err(StorageError::new(
+                ErrorCode::WrongPurpose,
+                "benchmark_view",
+                "Expected a synthetic benchmark database",
+            ));
+        }
+        let applied: Vec<(i64, bool, Vec<u8>)> = sqlx::query_as(
+            "SELECT version, success, checksum FROM _sqlx_migrations ORDER BY version",
+        )
+        .fetch_all(&db.pool)
+        .await?;
+        if applied.len() != MIGRATOR.iter().count()
+            || applied.iter().zip(MIGRATOR.iter()).any(
+                |((version, success, checksum), migration)| {
+                    *version != migration.version
+                        || !success
+                        || checksum.as_slice() != migration.checksum.as_ref()
+                },
+            )
+        {
+            return Err(StorageError::new(
+                ErrorCode::Migration,
+                "benchmark_view",
+                "Benchmark migration history does not match this build; file preserved",
+            ));
+        }
+        let config = synthetic::dataset_config(&db).await?;
+        if db.counts().await?.games != i64::from(config.games) {
+            return Err(StorageError::new(
+                ErrorCode::InvalidDatabase,
+                "benchmark_view",
+                "Benchmark count does not match metadata",
+            ));
+        }
+        Ok(db)
+    }
+
+    pub async fn window(&self, request: &PageRequest) -> Result<LibraryWindow> {
+        let start = std::time::Instant::now();
+        let items = self
+            .page(request)
+            .await?
+            .into_iter()
+            .map(|row| LibraryRow {
+                id: row.id,
+                title: row.title,
+                release_date: row.release_date,
+                source_names: row.source_names,
+                entry_count: row.entry_count,
+                installation_count: row.installation_count,
+                installed: row.installed,
+            })
+            .collect();
+        Ok(LibraryWindow {
+            offset: request.offset,
+            items,
+            query_ms: start.elapsed().as_secs_f64() * 1000.0,
+        })
+    }
     pub async fn initialize(path: &Path) -> Result<Self> {
         Self::open(path, "application", true).await
     }

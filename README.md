@@ -2,7 +2,7 @@
 
 A free and open-source, local-first Windows desktop game library, launcher, and integrated mod manager in early development. Large-library performance, safe mod operations, and a polished interface are core requirements.
 
-**M0.2 SQLite foundation is complete.** The application shell lives in `apps/desktop/`, with Rust-owned migrations, bounded summary services and isolated deterministic synthetic datasets. All six database scales through 25,000 games have been measured in release mode. Library and mod screens remain placeholders; frontend/scrolling performance is not yet verified. See [project status](docs/PROJECT_STATUS.md).
+The desktop application in `apps/desktop/` now has a Rust-backed virtualized Details View over the M0.2 SQLite service. It uses bounded pages and caching, keyboard selection, loading/error/retry states, and opt-in synthetic benchmark diagnostics. Mods and Settings remain placeholders. See [project status](docs/PROJECT_STATUS.md) and [M0.3 verification](docs/development/M0.3_VERIFICATION.md) for actual checks, measurements and limitations.
 
 The [M0.1 verification report](docs/development/M0.1_VERIFICATION.md) records the environment, exact dependency versions, checks, file inventory, and limitations.
 
@@ -58,7 +58,7 @@ Open a new terminal after installing prerequisites. If tools are installed but m
 $env:Path = "$env:USERPROFILE\.cargo\bin;$env:LOCALAPPDATA\pnpm\bin;$env:Path"
 ```
 
-`pnpm desktop:dev` starts Vite on `127.0.0.1:1420` and opens Tauri. The **Desktop connection** panel should show **Rust backend connected · Game Manager 0.1.0**. **Check again** repeats the real IPC call. Browser-only previews cannot call Rust and show an actionable error instead. Navigation selects Library, Mods, or Settings placeholders; it does not operate on game files or persist preferences.
+`pnpm desktop:dev` starts Vite on `127.0.0.1:1420` and opens Tauri. The **Desktop connection** panel should show **Rust backend connected · Game Manager 0.1.0**. **Check again** repeats the real IPC call. Library displays SQLite data (an empty library on a fresh normal database); Mods and Settings remain placeholders. Browser-only previews show an actionable IPC error. No game files are accessed.
 
 ## Development commands
 
@@ -76,7 +76,7 @@ Run these from `apps/desktop/`:
 | `pnpm lint:rust`     | Clippy across Rust targets; warnings fail the check               |
 | `pnpm format`        | Apply Prettier and rustfmt                                        |
 | `pnpm format:check`  | Check Prettier and rustfmt                                        |
-| `pnpm test`          | Frontend IPC and shell unit tests                                 |
+| `pnpm test`          | Frontend IPC, shell and virtualized library tests                 |
 | `pnpm test:rust`     | Rust contract, database, migrations and synthetic generator tests |
 
 The release executable is `apps/desktop/src-tauri/target/release/game-manager.exe`. This is a development verification artifact, not a portable distribution or installed release. Installer format, signing, updating, and the supported Windows matrix remain M5 work. First builds download Rust dependencies and can take several minutes. pnpm and Cargo lockfiles are included; generated assets and build outputs are ignored.
@@ -95,6 +95,7 @@ CI pins Node.js 26.12.1, reads pnpm 12.15.0 from `package.json`, and pins Rust 1
 apps/desktop/
   src/                 React/TypeScript presentation and temporary state
     components/        Shell icons and backend-connection panel
+    features/library/  Virtualized Details View, bounded cache, UI state and diagnostics
     ipc/               Narrow IPC wrapper, runtime validation, shared fixture
   src-tauri/
     src/               Rust entry points, storage service and narrow read commands
@@ -139,6 +140,27 @@ cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml --bin library-benc
 ```
 
 The generator supports 500, 2,000, 5,000, 12,320, 15,000 and 25,000 canonical games. It requires a new file, refuses existing databases/sidecars, and has no overwrite mode. A database purpose marker separates benchmark and application libraries. Repeated generation uses a new path; measurement reuses an existing complete benchmark. No real accounts, libraries, game files, or artwork are accessed. Generated databases/results are ignored by Git. See [benchmark methodology](benchmarks/README.md) and [M0.2 verification](docs/development/M0.2_VERIFICATION.md) for schema simplifications, exact counts, checks and actual database timings.
+
+## Virtualized library and frontend benchmarks
+
+The Details View uses ascending `(sort_title, id)` order, 38 CSS-pixel rows and eight rows of overscan per side. Only viewport pages are requested, with 100 rows per page, six retained pages, and one native page request at a time. Selection and scroll position survive navigation within the session. Arrow keys, Home/End and Page Up/Down navigate the library. Refresh starts a new request generation. There is no general sorting UI in M0.3.
+
+Normal startup never seeds synthetic data. To browse a complete M0.2 benchmark database, opt into the development-only Rust `benchmarks` feature and select an **existing absolute path**:
+
+```powershell
+cd apps/desktop
+$env:GAME_MANAGER_BENCHMARK_DB = 'E:\dev\game-manager\benchmarks\data\m0.2-2026-10-25-01\synthetic-v1-seed-42-15000.sqlite3'
+pnpm desktop:dev --features benchmarks
+# Optimized, bundled frontend/native benchmark build:
+pnpm tauri build --no-bundle --features benchmarks -- --locked
+./src-tauri/target/release/game-manager.exe
+```
+
+Choose any generated size: 500, 2,000, 5,000, 12,320, 15,000 or 25,000. Close and restart the application after changing the variable. Benchmark viewing opens SQLite **read-only**, verifies purpose, generator metadata, count and exact migration history, and never migrates the selected file. Missing/inaccessible/incompatible data produces an error; it does not fall back to a normal library. Ordinary builds without `benchmarks` ignore this variable. Remove it from the current terminal with `Remove-Item Env:GAME_MANAGER_BENCHMARK_DB` when finished.
+
+Development diagnostics show dataset source/size, mounted/visible rows, active/cached pages, initial view readiness, Rust query and frontend request durations. Frame sampling starts only when requested and retains at most 1,024 samples. React Profiler samples are available in development builds; normal optimized React builds do not provide them. Heap size can be unavailable and is separate from application process memory. Measurements are not FPS estimates or controlled cold-start results.
+
+For repeatable native scenarios, see [the frontend benchmark runner](benchmarks/README.md#native-frontend-scenarios-m03). Remote debugging is a manually enabled local testing facility, not application configuration.
 
 ## License
 

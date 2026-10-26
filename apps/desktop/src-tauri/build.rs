@@ -8,6 +8,8 @@ fn main() {
             "app_get_status",
             "database_get_status",
             "library_get_page",
+            "library_get_info",
+            "library_get_window",
         ]),
     ))
     .expect("could not generate Game Manager's Tauri build context");

@@ -13,6 +13,9 @@ import fixture from "./ipc/app-status.fixture.json";
 import App from "./App";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("./features/library/LibraryView", () => ({
+  LibraryView: () => <section>Library details</section>,
+}));
 afterEach(cleanup);
 
 describe("desktop shell", () => {
@@ -23,7 +26,9 @@ describe("desktop shell", () => {
     for (const name of ["Mods", "Settings", "Library"]) {
       fireEvent.click(screen.getByRole("button", { name }));
       expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(name);
-      expect(screen.getByText("Planned · not implemented yet")).toBeTruthy();
+      expect(
+        screen.getByText(name === "Library" ? "Library details" : /Planned/),
+      ).toBeTruthy();
     }
   });
   it("displays an IPC error and recovers when retried", async () => {
