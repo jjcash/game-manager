@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: **M0 is in progress: M0.1 through M0.4 complete within their verified scope; M0.1.1 CI awaits documented GitHub verification.** M0.5 and M1-M5 have not started. See [PROJECT_STATUS](PROJECT_STATUS.md) for measured limitations; the wider performance gate remains open.
+Status: **M0 is in progress: M0.1 through M0.5 complete within their verified scope; M0.1.1 CI awaits documented GitHub verification.** M0.6 and M1-M5 have not started. See [PROJECT_STATUS](PROJECT_STATUS.md) for measured limitations; the wider performance gate remains open.
 
 ## M0 — Performance-validation prototype
 
@@ -9,7 +9,7 @@ Status: **M0 is in progress: M0.1 through M0.4 complete within their verified sc
 - [x] Virtualized Details View over actual Rust/SQLite summaries, bounded caching and keyboard navigation — M0.3.
 - [x] Title/release sorting UI in both directions, stable ID ties and explicit NULL handling - M0.4.
 - [x] Rust title substring search plus installation/source/year filters, bounded counts/windows - M0.4.
-- [ ] Realistic thumbnail loading and bounded caching.
+- [x] Real local synthetic thumbnails with bounded jobs/queue/result/disk caches - M0.5; see [artwork evidence](development/M0.5_VERIFICATION.md).
 - [ ] Background import simulator with progress and safe cancellation.
 - [ ] Measure startup, scrolling, search, memory and interaction under load.
 - [x] Record initial Details View readiness, scrolling/frame intervals, IPC/query durations and memory point samples at 500, 12,320, 15,000 and 25,000 — M0.3; wider startup/load/long-session work remains open.
@@ -67,7 +67,15 @@ Complete within this scope; see [M0.3 verification](development/M0.3_VERIFICATIO
 - [x] Fifty-iteration database/plans scenarios at four sizes, 72 native query scenarios, and two 15,000-game M0.3 browsing comparisons.
 - [x] Investigate correlated-count regressions and long frames; retain measured stress limitations rather than claiming every provisional budget achieved.
 
-Complete within this scope; see [M0.4 verification](development/M0.4_VERIFICATION.md). Membership queries reduced the installed count-plus-page p95 from 295.17 to 101.24 ms at 15,000, while 25,000 still reached 262.10 ms. Native bounds remain 26 rows/six pages/one library request. Occasional long query-workload frames, HDD/lower-memory and sustained-memory checks remain open. No artwork/import/job work, commit/push or M0.5 implementation was performed. M0.5 needs separate authorization and scope.
+Complete within this scope; see [M0.4 verification](development/M0.4_VERIFICATION.md). Membership queries reduced the installed count-plus-page p95 from 295.17 to 101.24 ms at 15,000, while 25,000 still reached 262.10 ms. Native bounds remain 26 rows/six pages/one library request. Occasional long query-workload frames, HDD/lower-memory and sustained-memory checks remain open. No artwork/import/job work, commit/push or M0.5 implementation was performed. This describes the M0.4 handoff; the separately authorized M0.5 follows below.
+
+### M0.5 - Bounded synthetic artwork and thumbnail pipeline
+
+Complete within the synthetic prototype scope; see [M0.5 verification](development/M0.5_VERIFICATION.md). Real local thumbnails appear in the virtualized Details View through ID-only Rust access. Source byte/pixel limits, two jobs, a 32-entry frontend queue, 128-entry result caches and 256-file/4-MiB derived disk storage are enforced. Originals, thumbnails and temporary files have separate ownership; missing/corrupt assets preserve library interaction. No provider, importer, real-game scan or mod feature was added.
+
+All local quality checks, 29 frontend/32 Rust tests and production builds passed; normal optimized startup and disabled benchmark selection were verified in an isolated root. Eight UI runs at 500/12,320/15,000/25,000, saturated-cache IPC/SQL probes, matched browsing controls, a CPU profile and a 20-pass memory run are documented. Primary release-scale installed SQL p95 reached 140.69 ms under continuous artwork; stress reached 299.79 ms. Long frames and shared-resource contention remain open. The longer short-run memory observation does not complete all M0 memory/hardware goals.
+
+The next separately authorized task is M0.6's synthetic background-load simulator with progress/cancellation and measured scheduling under SQL/artwork load. No M0.6 work starts automatically. Query architecture/index changes remain a separate proposal.
 
 ## M1 — Library foundation
 

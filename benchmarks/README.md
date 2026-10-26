@@ -1,5 +1,7 @@
 # Synthetic SQLite benchmarks
 
+M0.5 also provides bounded synthetic artwork benchmarks. See the [M0.5 verification report](../docs/development/M0.5_VERIFICATION.md) for fixture generation/cleanup, cache ownership, limits, exact commands and measured results. The M0.2 instructions below remain the database-only baseline.
+
 M0.2 contains database measurements only. No storefront, game files, accounts, artwork, frontend rendering, or background imports are involved.
 
 Use Windows PowerShell with Cargo on PATH, from the repository root:
@@ -65,3 +67,13 @@ cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml --bin library-benc
 ```
 
 `query-measure` returns counts, stable-window comparisons, count/page/combined distributions and actual plans for 14 scenarios, including deep offsets. `search-evaluate` compares LIKE and FTS5 trigram on one connection's freshly built TEMP table, discarding one warm-up before 50 samples; creation cost is excluded. Both open the main benchmark database read-only and do not run migrations. FTS TEMP data is a disposable experiment, not a maintained production index. Run at 500, 12,320, 15,000 and 25,000, with no competing compilation/tests for final measurements. Retain machine/cache state and comparison limitations with results; see [M0.4 verification](../docs/development/M0.4_VERIFICATION.md).
+
+## M0.5 artwork and normal-build controls
+
+Generate exclusively local procedural fixtures with the benchmark-only `artwork-fixtures` CLI. Exact generation/cleanup commands and measured results are in [M0.5 verification](../docs/development/M0.5_VERIFICATION.md). No normal application database is seeded; cache eviction never deletes originals.
+
+The existing `frontend.ps1` runner accepts `-ArtworkDirectory` containing `artwork-500`, `artwork-12320`, `artwork-15000` and `artwork-25000` roots. `-ArtworkScenarios` runs artwork scrolling/cache checks followed by the query matrix; `-ArtworkIpcScenarios` instead saturates caches and records 50 repeated native metadata/window samples per criterion under two artwork requests. `-ArtworkCycles 20` extends repeated visits (default 3, allowed 1-50). `-ProfileArtwork` saves a separate V8 CPU profile. `-NoMemorySeries` disables periodic WMI sampling for observer-effect controls while retaining the final memory point. `-BenchmarkExecutable` can select an explicitly retained byte-identical test artifact; this introduces no portable application mode.
+
+Build without benchmark features before `-NormalSmoke -Sizes 500 -Runs 1`: it verifies an empty isolated application library, successful Rust IPC, ignored benchmark dataset/artwork selection, no diagnostics and no alerts. It uses the same explicit source-database hashes, isolated data/profile paths, loopback transport and normal window shutdown as the benchmark runner. This is the preferred normal-build launch check.
+
+`library-bench query-measure --artwork ABSOLUTE_FIXTURE_ROOT --database ABSOLUTE_BENCHMARK_DB --iterations 50` adds two continuous artwork workers to the unchanged SQL scenarios. Run final measurements sequentially without competing builds/tests/generation, identify cache state and keep native IPC, SQL-only, rendering and profile observations separate.

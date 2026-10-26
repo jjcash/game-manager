@@ -78,6 +78,7 @@ async fn run() -> storage::Result<()> {
     storage::validate_path(&path)?;
     match action.as_str() {
         "query-measure" => {
+            let artwork_root = options.remove("--artwork").map(PathBuf::from);
             let iterations: u32 = options
                 .remove("--iterations")
                 .unwrap_or_else(|| "50".into())
@@ -86,7 +87,7 @@ async fn run() -> storage::Result<()> {
             if !options.is_empty() || !(1..=10000).contains(&iterations) {
                 return Err(invalid("Invalid iterations/options"));
             }
-            measure_queries(path, iterations).await?;
+            measure_queries(path, iterations, artwork_root).await?;
         }
         "search-evaluate" => {
             if !options.is_empty() {
@@ -194,10 +195,36 @@ async fn run() -> storage::Result<()> {
     Ok(())
 }
 
-async fn measure_queries(path: PathBuf, iterations: u32) -> storage::Result<()> {
+async fn measure_queries(
+    path: PathBuf,
+    iterations: u32,
+    artwork_root: Option<PathBuf>,
+) -> storage::Result<()> {
     use storage::query::{Criteria, Direction, InstallationFilter, QueryRequest};
     let db = storage::Database::benchmark_view(&path).await?;
     let config = synthetic::dataset_config(&db).await?;
+    let artwork = artwork_root
+        .map(|root| game_manager_lib::artwork::Service::open(&root).map_err(invalid))
+        .transpose()?;
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let worker = artwork.as_ref().map(|service| {
+        let service = std::sync::Arc::clone(service);
+        let stop = std::sync::Arc::clone(&stop);
+        tokio::spawn(async move {
+            let mut index = 0;
+            while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                let one = format!("syn-{:016x}-g-{:05}", config.seed, index % config.games);
+                let two = format!(
+                    "syn-{:016x}-g-{:05}",
+                    config.seed,
+                    (index + 1) % config.games
+                );
+                tokio::join!(service.request(&one), service.request(&two));
+                index += 2;
+                tokio::task::yield_now().await;
+            }
+        })
+    });
     let source = db.source_options().await?.first().map(|s| s.id.clone());
     let cases = vec![
         ("empty", Criteria::default(), false),
@@ -347,6 +374,10 @@ async fn measure_queries(path: PathBuf, iterations: u32) -> storage::Result<()> 
         results.push(serde_json::json!({"name":name,"request":request,"count":count,"countMs":timing(counts),"pageMs":timing(pages),"combinedMs":timing(combined),"plans":db.criteria_plans(&request).await?}));
     }
     db.close().await;
-    println!("{}",serde_json::to_string_pretty(&serde_json::json!({"database":path,"config":config,"iterations":iterations,"scenarios":results})).unwrap());
+    stop.store(true, std::sync::atomic::Ordering::Relaxed);
+    if let Some(worker) = worker {
+        worker.await.map_err(invalid)?;
+    }
+    println!("{}",serde_json::to_string_pretty(&serde_json::json!({"database":path,"config":config,"iterations":iterations,"scenarios":results,"artwork":artwork.map(|s| s.stats())})).unwrap());
     Ok(())
 }

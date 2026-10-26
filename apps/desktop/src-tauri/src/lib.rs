@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+pub mod artwork;
 mod commands;
 pub mod storage;
+
+pub struct ArtworkState(Option<Arc<artwork::Service>>);
 
 use std::sync::Arc;
 use tauri::Manager;
@@ -44,6 +47,21 @@ pub fn run() {
                 ..Default::default()
             };
             let ready = Arc::clone(&state.database);
+            // Fixtures are selected only by an explicitly enabled benchmark binary.
+            // Normal startup never generates artwork or scans a personal library.
+            #[cfg(feature = "benchmarks")]
+            let artwork = std::env::var_os("GAME_MANAGER_BENCHMARK_ARTWORK").and_then(|root| {
+                match artwork::Service::open(std::path::Path::new(&root)) {
+                    Ok(service) => Some(service),
+                    Err(error) => {
+                        eprintln!("Artwork unavailable: {error}");
+                        None
+                    }
+                }
+            });
+            #[cfg(not(feature = "benchmarks"))]
+            let artwork = None;
+            app.manage(ArtworkState(artwork));
             let default_root = app.path().app_local_data_dir();
             let override_root =
                 std::env::var_os("GAME_MANAGER_DATA_DIR").map(std::path::PathBuf::from);
@@ -95,7 +113,9 @@ pub fn run() {
             commands::library_get_page,
             commands::library_get_info,
             commands::library_get_window,
-            commands::library_query
+            commands::library_query,
+            commands::artwork_get_thumbnail,
+            commands::artwork_get_stats
         ])
         .run(tauri::generate_context!())
         .expect("Game Manager could not start its desktop runtime");
