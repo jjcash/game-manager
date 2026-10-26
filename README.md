@@ -2,7 +2,7 @@
 
 A free and open-source, local-first Windows desktop game library, launcher, and integrated mod manager in early development. Large-library performance, safe mod operations, and a polished interface are core requirements.
 
-The desktop application in `apps/desktop/` has a Rust-backed virtualized Details View with title search, installation/source/year filters and title/release sorting. Pages and caching remain bounded, with keyboard selection, loading/error/retry states and opt-in synthetic diagnostics. Mods and Settings remain placeholders. See [project status](docs/PROJECT_STATUS.md) and [M0.4 verification](docs/development/M0.4_VERIFICATION.md) for checks, measurements and limitations.
+The desktop application in `apps/desktop/` has a Rust-backed virtualized Details View with title search, installation/source/year filters and title/release sorting. Pages and caching remain bounded, with keyboard selection, loading/error/retry states and opt-in synthetic diagnostics. M0.5 adds a compact thumbnail column with a bounded Rust synthetic-artwork service; normal libraries remain unseeded. Mods and Settings remain placeholders. See [project status](docs/PROJECT_STATUS.md) and [M0.4 verification](docs/development/M0.4_VERIFICATION.md) for checks, measurements and limitations. See [M0.5 artwork verification](docs/development/M0.5_VERIFICATION.md) for ownership, cache/decode limits, deterministic fixture generation/cleanup and native artwork measurements.
 
 The [M0.1 verification report](docs/development/M0.1_VERIFICATION.md) records the environment, exact dependency versions, checks, file inventory, and limitations.
 
@@ -173,3 +173,11 @@ Game Manager's original software code is distributed under the GNU General Publi
 Game Manager is distributed without any warranty, including the implied warranties of merchantability or fitness for a particular purpose, as provided in the license.
 
 This project license does not automatically relicense third-party game artwork, mods, ROMs, trainers, maps, guides, dependencies, or other external content. Those materials retain their respective licenses, copyrights, and usage restrictions; managing or launching them does not grant redistribution rights.
+
+## Synthetic artwork prototype (M0.5)
+
+Artwork uses a separate two-job Rust service and two-request frontend scheduler; it never holds the SQL request gate. Only visible/overscan rows request 64×36 PNG thumbnails for the fixed 48×27 column. Original PNG/JPEG files stay in the controlled fixture root; React receives bounded image data through an ID-only command. Missing and damaged artwork are ordinary placeholder states. There is no filesystem URL scope or real-artwork acquisition.
+
+Both result caches retain at most 128 entries; the frontend queue is capped at 32 jobs and derived disk storage at 256 files/4 MiB. Only explicit benchmark builds honor `GAME_MANAGER_BENCHMARK_ARTWORK`. Normal startup generates neither artwork nor library records. Sources, derived thumbnails and temporary writes are separate. See the [M0.5 report](docs/development/M0.5_VERIFICATION.md) for source/decode caps, invalidation, security tests, repeatable commands and limitations.
+
+`benchmarks/frontend.ps1 -ArtworkDirectory E:\dev\game-manager\benchmarks\data -ArtworkScenarios ...` adds slow/rapid scrolling, repeated distant windows, visible-image checks, native cache/concurrency counters and process-memory time series, then repeats the M0.4 search/filter/sort matrix under artwork load. `library-bench query-measure --artwork ABSOLUTE_FIXTURE_ROOT ...` measures the unchanged SQL scenarios while two synthetic-artwork workers run. Fixture CLI generation and cleanup require an explicit disposable `benchmarks/data/artwork-NAME` root. No generated image or benchmark output belongs in Git. M0.6 requires separate authorization.

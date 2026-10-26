@@ -9,6 +9,8 @@
     "allow-library-get-page",
     "allow-library-get-info",
     "allow-library-get-window",
-    "allow-library-query"
+    "allow-library-query",
+    "allow-artwork-get-thumbnail",
+    "allow-artwork-get-stats"
   ]
 }

@@ -17,6 +17,7 @@ import {
 import { LibraryView } from "./LibraryView";
 import { useLibraryUI } from "./state";
 import { pageGate } from "./requestGate";
+import { artworkQueue, type ArtworkResult } from "./artwork";
 import { StrictMode } from "react";
 vi.mock("../../ipc/library", async (original) => ({
   ...(await original<typeof import("../../ipc/library")>()),
@@ -89,6 +90,44 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("Details View", () => {
+  it("keeps filters, keyboard selection and bounded rows usable while artwork is pending", async () => {
+    const callbacks: ((result: ArtworkResult) => void)[] = [];
+    const release = vi.fn();
+    vi.spyOn(artworkQueue, "subscribe").mockImplementation(
+      (_id, _priority, callback) => {
+        callbacks.push(callback);
+        return release;
+      },
+    );
+    render(<LibraryView />);
+    await screen.findByText("Game 0");
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "End" });
+    await screen.findByText("Game 14999");
+    expect(screen.getAllByRole("row").length).toBeLessThanOrEqual(28);
+    expect(useLibraryUI.getState().selection?.id).toBe("id-14999");
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "Game" },
+    });
+    await waitFor(() =>
+      expect(getLibraryInfo).toHaveBeenLastCalledWith(
+        expect.objectContaining({ search: "Game" }),
+      ),
+    );
+    await screen.findByText("Game 0");
+    expect(release).toHaveBeenCalled();
+    act(() =>
+      callbacks[0]({
+        status: "corrupt",
+        dataUrl: null,
+        cache: "none",
+        workMs: 1,
+        decodeMs: 0,
+      }),
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("rowgroup").scrollTop).toBe(0);
+    expect(pageGate.activeRequests).toBeLessThanOrEqual(1);
+  }, 15000);
   it("resets the virtualizer when a deep query becomes a short result set", async () => {
     vi.mocked(getLibraryInfo).mockImplementation(async (criteria) => ({
       total: criteria?.search ? 5 : total,
@@ -298,7 +337,9 @@ describe("Details View", () => {
     await screen.findByText("Game 13027");
     expect(getLibraryWindow).toHaveBeenCalledTimes(2);
     expect(screen.getAllByRole("row").length).toBeLessThanOrEqual(28);
-  });
+    // 99 synchronous jsdom scroll commits are a correctness stress scenario,
+    // not a wall-clock performance measurement. Native timings are benchmarked.
+  }, 15000);
 
   it("ignores out-of-order metadata and cancels queued work on unmount", async () => {
     let oldInfo!: (value: Awaited<ReturnType<typeof getLibraryInfo>>) => void;

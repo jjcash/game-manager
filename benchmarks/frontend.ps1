@@ -4,11 +4,20 @@ param(
     [Parameter(Mandatory = $true)][string]$ResultsDirectory,
     [int[]]$Sizes = @(500, 12320, 15000, 25000),
     [int]$Runs = 2,
-    [switch]$QueryScenarios
+    [switch]$QueryScenarios,
+    [string]$ArtworkDirectory,
+    [switch]$ArtworkScenarios,
+    [switch]$ArtworkIpcScenarios,
+    [switch]$ProfileArtwork,
+    [switch]$NoMemorySeries,
+    [string]$BenchmarkExecutable,
+    [switch]$NormalSmoke,
+    [ValidateRange(1,50)][int]$ArtworkCycles = 3
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $executable = Join-Path $repo 'apps/desktop/src-tauri/target/release/game-manager.exe'
+if ($BenchmarkExecutable) { $executable = (Resolve-Path -LiteralPath $BenchmarkExecutable).Path }
 if (!(Test-Path -LiteralPath $executable)) { throw 'Build the native app with --features benchmarks first.' }
 if (Get-Process game-manager -ErrorAction SilentlyContinue) { throw 'Close existing Game Manager windows first.' }
 if (Get-NetTCPConnection -LocalPort 9223 -State Listen -ErrorAction SilentlyContinue) { throw 'Port 9223 is already in use.' }
@@ -20,6 +29,7 @@ $savedDatabase = $env:GAME_MANAGER_BENCHMARK_DB
 $savedArguments = $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
 $savedProfile = $env:WEBVIEW2_USER_DATA_FOLDER
 $savedDataRoot = $env:GAME_MANAGER_DATA_DIR
+$savedArtwork = $env:GAME_MANAGER_BENCHMARK_ARTWORK
 function Get-AppMemory([int]$RootId) {
     $processes = Get-CimInstance Win32_Process
     $ids = @($RootId)
@@ -42,10 +52,33 @@ try {
         $beforeHash = (Get-FileHash -LiteralPath $database).Hash
         for ($run = 1; $run -le $Runs; $run++) {
             $env:GAME_MANAGER_BENCHMARK_DB = $database
+            if ($ArtworkDirectory) {
+                $env:GAME_MANAGER_BENCHMARK_ARTWORK = (Resolve-Path -LiteralPath (Join-Path $ArtworkDirectory "artwork-$size")).Path
+            } else { $env:GAME_MANAGER_BENCHMARK_ARTWORK = $null }
             $appProcess = Start-Process -FilePath $executable -WindowStyle Hidden -PassThru -RedirectStandardError (Join-Path $resultsRoot "$size-$run.stderr.txt")
             try {
-                & node (Join-Path $PSScriptRoot $(if ($QueryScenarios) {'frontend-query.mjs'} else {'frontend.mjs'})) 'http://127.0.0.1:9223' (Join-Path $resultsRoot "$size-$run.json")
-                if ($LASTEXITCODE -ne 0) { throw "Frontend scenario failed for $size run $run" }
+                $driver = if ($NormalSmoke) { 'frontend-normal.mjs' } elseif ($ArtworkIpcScenarios) { 'frontend-artwork-ipc.mjs' } elseif ($ArtworkScenarios) { 'frontend-artwork.mjs' } elseif ($QueryScenarios) { 'frontend-query.mjs' } else { 'frontend.mjs' }
+                $memorySamples = [System.Collections.Generic.List[object]]::new()
+                $clock = [Diagnostics.Stopwatch]::StartNew()
+                $drivers = @(@{name = $driver; suffix = ''})
+                if ($ArtworkScenarios) { $drivers += @{name = 'frontend-query.mjs'; suffix = '.query'} }
+                foreach ($scenario in $drivers) {
+                    $reportPath = Join-Path $resultsRoot "$size-$run$($scenario.suffix).json"
+                    $nodeArguments = @(('"' + (Join-Path $PSScriptRoot $scenario.name) + '"'), 'http://127.0.0.1:9223', ('"' + $reportPath + '"'))
+                    if ($ProfileArtwork -and $scenario.name -eq 'frontend-artwork.mjs') { $nodeArguments += '--profile' }
+                    if ($scenario.name -eq 'frontend-artwork.mjs') { $nodeArguments += "--cycles=$ArtworkCycles" }
+                    $driverProcess = Start-Process -FilePath (Get-Command node).Source -ArgumentList $nodeArguments -WindowStyle Hidden -PassThru -RedirectStandardOutput "$reportPath.stdout.txt" -RedirectStandardError "$reportPath.stderr.txt"
+                    # Retain the process handle while sampling; refreshing an exited
+                    # Process can discard its cached Windows exit status.
+                    $null = $driverProcess.Handle
+                    do {
+                        $exited = $driverProcess.WaitForExit(2000)
+                        if (!$NoMemorySeries) { $memorySamples.Add(@{elapsedMs = $clock.ElapsedMilliseconds; utc = [DateTime]::UtcNow.ToString('o'); scenario = $scenario.name; memory = (Get-AppMemory $appProcess.Id)}) }
+                    } while (!$exited)
+                    $driverProcess.WaitForExit()
+                    if ($driverProcess.ExitCode -ne 0) { throw "Frontend scenario failed for $size run $run; see $reportPath.stderr.txt" }
+                }
+                $memorySamples | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $resultsRoot "$size-$run.memory-series.json")
                 Get-AppMemory $appProcess.Id | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $resultsRoot "$size-$run.memory.json")
             } finally {
                 $appProcess.Refresh()
@@ -60,4 +93,5 @@ try {
     $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = $savedArguments
     $env:WEBVIEW2_USER_DATA_FOLDER = $savedProfile
     $env:GAME_MANAGER_DATA_DIR = $savedDataRoot
+    $env:GAME_MANAGER_BENCHMARK_ARTWORK = $savedArtwork
 }

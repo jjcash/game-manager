@@ -323,7 +323,9 @@ h1 {
 }
 .library-columns {
   display: grid;
-  grid-template-columns: minmax(240px, 2.2fr) 110px minmax(160px, 1.4fr) 170px;
+  grid-template-columns:
+    64px minmax(240px, 2.2fr) 110px minmax(160px, 1.4fr)
+    170px;
   min-width: 700px;
   align-items: center;
 }
@@ -375,6 +377,26 @@ h1 {
 .game-row small {
   color: var(--color-muted);
   font-size: 10px;
+}
+.library-columns > span:first-child {
+  padding: 0 8px;
+}
+.thumbnail {
+  display: flex;
+  width: 48px;
+  height: 27px;
+  align-items: center;
+  justify-content: center;
+  background: #243137;
+  color: #78918a;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.thumbnail img {
+  display: block;
+  width: 48px;
+  height: 27px;
+  object-fit: cover;
 }
 .installed {
   color: var(--color-accent);

@@ -16,6 +16,7 @@ const {
 } = await connectWebview(endpoint);
 const report = {
   timestamp: new Date().toISOString(),
+  timeOrigin: await evaluate(`performance.timeOrigin`),
   url: target.url,
   scenarios: [],
 };

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { sample, type Metrics } from "./metrics";
 import { pageGate } from "./requestGate";
+import { artworkQueue } from "./artwork";
 function distribution(values: number[]) {
   if (!values.length) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -57,6 +58,24 @@ export function Diagnostics({
     performance as Performance & { memory?: { usedJSHeapSize: number } }
   ).memory?.usedJSHeapSize;
   const report = {
+    startedAt: m.started,
+    artwork: {
+      active: artworkQueue.active,
+      queued: artworkQueue.queued,
+      cached: artworkQueue.cached,
+      maxActive: artworkQueue.maxActive,
+      maxQueued: artworkQueue.maxQueued,
+      hits: artworkQueue.hits,
+      cancelled: artworkQueue.cancelled,
+      dropped: artworkQueue.dropped,
+      requestMs: distribution(artworkQueue.requests.map((r) => r.duration)),
+      decodeMs: distribution(
+        artworkQueue.requests
+          .filter((r) => r.decodeMs > 0)
+          .map((r) => r.decodeMs),
+      ),
+      recent: artworkQueue.requests.slice(-32),
+    },
     source,
     total,
     viewport: [innerWidth, innerHeight],

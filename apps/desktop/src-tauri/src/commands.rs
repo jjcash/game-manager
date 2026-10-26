@@ -2,6 +2,26 @@
 
 use serde::Serialize;
 
+#[tauri::command]
+pub async fn artwork_get_thumbnail(
+    state: tauri::State<'_, crate::ArtworkState>,
+    id: String,
+) -> Result<crate::artwork::Reply, String> {
+    Ok(if let Some(service) = &state.0 {
+        service.request(&id).await
+    } else {
+        crate::artwork::Reply::empty("missing")
+    })
+}
+
+#[tauri::command]
+pub fn artwork_get_stats(state: tauri::State<'_, crate::ArtworkState>) -> crate::artwork::Stats {
+    state
+        .0
+        .as_ref()
+        .map_or_else(Default::default, |s| s.stats())
+}
+
 /// A small, read-only IPC probe. This does not imply database readiness.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

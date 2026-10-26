@@ -33,6 +33,8 @@ import {
   ROW_HEIGHT,
 } from "./cache";
 import { pageGate } from "./requestGate";
+import { Thumbnail } from "./Thumbnail";
+import { artworkQueue } from "./artwork";
 import { useLibraryUI } from "./state";
 import { LibraryControls } from "./LibraryControls";
 import { Diagnostics } from "./Diagnostics";
@@ -66,6 +68,7 @@ export function LibraryView() {
   }, [criteria, client]);
   useEffect(() => () => client.clear(), [client]);
   function refresh() {
+    artworkQueue.clear();
     void client.cancelQueries();
     client.clear();
     setMetrics(createMetrics());
@@ -308,9 +311,12 @@ function Library({
       }
       onKeyDown={keyboard}
       aria-rowcount={total + 1}
-      aria-colcount={4}
+      aria-colcount={5}
     >
       <div className="library-columns" role="row" aria-rowindex={1}>
+        <span role="columnheader" aria-label="Artwork">
+          Art
+        </span>
         <span
           role="columnheader"
           aria-sort={
@@ -364,6 +370,13 @@ function Library({
               row={rowAt(r.index)}
               index={r.index}
               top={r.start}
+              artworkRevision={generation}
+              visible={
+                r.end > (virtualizer.scrollOffset ?? 0) &&
+                r.start <
+                  (virtualizer.scrollOffset ?? 0) +
+                    (virtualizer.scrollRect?.height ?? 0)
+              }
               selected={
                 !!selection &&
                 (selection.id
@@ -490,12 +503,16 @@ const GameRow = memo(function GameRow({
   row,
   index,
   top,
+  visible,
+  artworkRevision,
   selected,
   select,
 }: {
   row?: LibraryRow;
   index: number;
   top: number;
+  visible: boolean;
+  artworkRevision: number;
   selected: boolean;
   select: (id: string | null, index: number) => void;
 }) {
@@ -512,6 +529,9 @@ const GameRow = memo(function GameRow({
         select(row?.id ?? null, index);
       }}
     >
+      <span role="gridcell">
+        <Thumbnail id={row?.id} visible={visible} revision={artworkRevision} />
+      </span>
       <span role="gridcell" className="game-title" title={row?.title}>
         {row?.title ?? "Loading game…"}
       </span>

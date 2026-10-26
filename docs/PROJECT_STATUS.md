@@ -1,10 +1,10 @@
 # Project Status
 
-Last verification: 2026-10-26. See [M0.1 evidence](development/M0.1_VERIFICATION.md), [M0.1.1 CI verification](development/M0.1.1_CI_VERIFICATION.md), [M0.2 database evidence](development/M0.2_VERIFICATION.md), [M0.3 frontend evidence](development/M0.3_VERIFICATION.md), and [M0.4 search/filter/sort verification](development/M0.4_VERIFICATION.md).
+Last verification: 2026-10-26. See [M0.1 evidence](development/M0.1_VERIFICATION.md), [M0.1.1 CI verification](development/M0.1.1_CI_VERIFICATION.md), [M0.2 database evidence](development/M0.2_VERIFICATION.md), [M0.3 frontend evidence](development/M0.3_VERIFICATION.md), [M0.4 search/filter/sort verification](development/M0.4_VERIFICATION.md), and [M0.5 artwork verification](development/M0.5_VERIFICATION.md).
 
 ## Actual state
 
-**M0.1 through M0.4 are complete within their verified scope.** The native virtualized Details View now supports Rust/SQLite title search, installation/source/year filters and stable title/release sorting. All 72 native query scenarios passed across 500, 12,320, 15,000 and 25,000 games, alongside the original browsing comparison. M0 remains incomplete: artwork, background load, HDD/lower-memory and long-session validation are pending. Stress-count costs and occasional long frames remain measured limitations. M0.5 has not started.
+**M0.1 through M0.5 are complete within their verified scope.** The Rust/SQLite-backed virtualized Details View supports search/filter/sort and a compact synthetic-thumbnail column with separate bounded artwork admission, decoding and caches. All eight final UI runs passed across 500, 12,320, 15,000 and 25,000 games, plus cache-saturation IPC/SQL probes and browsing/profile controls. M0 remains incomplete: background-load simulation, HDD/lower-memory, controlled process startup and longer-session validation remain pending. Stress-count costs, artwork contention and occasional long frames remain measured limitations. M0.6 has not started.
 
 Historical prototype checkmarks were accidental and explicitly withdrawn by the user. They remain invalid; the progress below comes from the current implementation and checks. Specifications and ADRs retain their planning baseline; this file governs current completion claims.
 
@@ -16,11 +16,11 @@ Historical prototype checkmarks were accidental and explicitly withdrawn by the 
 | MDRS                                                     | Original detailed protocol recovered; architectural safety direction accepted, protocol remains proposed             |
 | Repository ADRs                                          | ADR-001–005 reconciled; historical labels mapped; ADR-006 accepts GPL-3.0-or-later                                   |
 | Software license                                         | GPL-3.0-or-later accepted; root LICENSE, manifest metadata and first-party SPDX notices added                        |
-| Desktop app and UI                                       | Dark Tauri shell and virtualized Details View with search/filter/sort; Mods/Settings remain placeholders             |
+| Desktop app and UI                                       | Dark Tauri shell and virtualized Details View with search/filter/sort/thumbnails; Mods/Settings remain placeholders             |
 | Frontend-backend communication                           | Original probes/page commands retained; typed criteria/count/window IPC and runtime validation verified              |
-| Development quality checks                               | Frozen install, TypeScript, lint, formatting, 24 frontend/23 Rust tests and production frontend/native builds passed |
+| Development quality checks                               | Frozen install, TypeScript, lint, formatting, 29 frontend/32 Rust tests and production frontend/native builds passed |
 | SQLite database/migrations                               | M0.2 complete: SQLx/SQLite, versioned migration, purpose separation, WAL/FK bounded pool, status/count/page services |
-| Details View/grid and artwork pipeline                   | M0.4 searchable/filterable/sortable Details View verified; cover grid/artwork not implemented                        |
+| Details View/grid and artwork pipeline                   | M0.5 compact synthetic thumbnails, bounded jobs/queue/caches verified; cover grid/providers not implemented                        |
 | M0 prototype and benchmarks                              | Shell/SQLite/Details View/query prototype complete; broader M0 gate and stress limitations remain open               |
 | Store imports, launching and activity                    | Not implemented                                                                                                      |
 | Mod adapters, deployment and recovery                    | Not implemented or tested                                                                                            |
@@ -76,9 +76,21 @@ All 24 frontend and 23 Rust tests, frozen installation, TypeScript, ESLint, Pret
 
 See [M0.4 verification](development/M0.4_VERIFICATION.md) for exact semantics, IPC, plans, all timing tables, M0.3 comparison, source-option/virtualizer regression fixes, earlier failures and limits. Normal user databases and real game files were untouched. No commit/push or M0.5 implementation was performed.
 
+## M0.5 implementation and evidence
+
+Synthetic PNG/JPEG originals, derived 64x36 PNG thumbnails and temporary writes are separate. Only mounted visible/overscan rows subscribe; a two-request/32-queued frontend scheduler feeds an ID-only Rust service with two active source jobs, no backend work queue and bounded duplicate waiters. Frontend/native result caches retain 128 entries each; derived disk storage is capped at 256 files/4 MiB. Original byte/pixel limits and cache containment checks reject unsafe inputs. React gains no filesystem URL or raw filesystem capability. Normal startup generates no artwork or library data; fixture selection requires an explicit benchmark build.
+
+All 29 frontend and 32 Rust tests, frozen pnpm installation, TypeScript, ESLint, formatting, default/all-feature warnings-denied Clippy, production frontend and normal native Windows builds passed. The normal optimized app launched through the existing isolated hash-checking runner, showed the empty library and successful Rust connection, ignored selected nonempty benchmark databases/artwork, and rendered no diagnostics. A default-build-only fixture-constant reference was corrected and its values checked against the SQL generator.
+
+Eight final process runs passed 208 UI scenarios with at most 27 mounted rows (including a partial row), six cached data pages, one library request, two artwork jobs/decodes and 26 queued artwork IDs. Library usability took 94-163 ms from component creation; visible artwork settled in 270-406 ms. Ordinal saturation probes filled both cache capacities at all four sizes and completed 800 repeated metadata plus 800 window samples without unstable results. Paired SQL runs retained 50 samples in each of 14 unchanged cases; all counts match M0.4. No SQL/index/schema/search architecture changed.
+
+Artwork contention remains material: installed count-plus-page p95 at 15,000 rose from 99.41 ms idle to 140.69 ms with continuous artwork work; at 25,000 it rose from 204.55 to 299.79 ms. Stress installed/not-installed/combined costs still exceed provisional goals. Matched browsing controls without periodic memory sampling retained page p95 in M0.4's observed range, but occasional long frames persist. A separate CPU profile did not attribute the reproduced long task to a specific function or subsystem; no FPS/root-cause claim is made.
+
+Process memory initially grew across short passes. A 20-pass release-scale run then stayed around 312-320 MiB in its last ten scrolling passes, reaching about 344 MiB after the query matrix. This is limited short-run stabilization evidence, not a strict process-memory bound or long-session leak proof. The report records full timings, memory points, cold/retained caches, observer effects, exact commands, security tests, corrected failures and limitations. Generated assets/results remain ignored. No real installation/personal library, commit, push or M0.6 work was involved.
+
 ## Recommended next separately authorized task
 
-Review the M0.4 stress-count and long-task findings, then separately authorize M0.5's bounded synthetic-thumbnail prototype with cache/decode/corrupt-image and query-under-artwork-load checks. Preserve the current query/cancellation/bounds tests. HDD, lower-memory, physical scaling and sustained-memory evidence remain open. Do not begin automatically. No new GitHub CI run or branch-protection enforcement is claimed by this task.
+Separately authorize M0.6: a synthetic background-load/import simulator with progress, bounded scheduling and safe cancellation, measuring competition with interactive SQL and artwork. Include worker-count/backoff experiments and preserve all current bounds/cancellation/selection tests. Keep stress-query optimization and deeper renderer/native profiling explicitly scoped; no new index/count cache/FTS switch is approved by this task. HDD, lower-memory, physical scaling, controlled OS-cold process startup and longer-session memory evidence remain open. No new GitHub CI run or branch-protection enforcement is claimed. Do not begin M0.6 automatically.
 
 ## Genuine remaining work
 
