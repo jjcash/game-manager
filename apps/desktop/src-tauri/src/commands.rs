@@ -24,8 +24,9 @@ pub fn app_get_status() -> AppStatus {
 fn public_error(mut error: crate::storage::StorageError) -> crate::storage::StorageError {
     use crate::storage::ErrorCode;
     if !matches!(error.code, ErrorCode::NotReady | ErrorCode::InvalidRequest) {
+        eprintln!("{}", serde_json::to_string(&error).unwrap_or_default());
         error.message =
-            "Database unavailable; inspect local diagnostics. The database was preserved.".into();
+            "Database unavailable. Check the configured data location and local diagnostics, then restart Game Manager. The database was preserved.".into();
     }
     error
 }
@@ -45,6 +46,39 @@ pub async fn library_get_page(
     request: crate::storage::PageRequest,
 ) -> crate::storage::Result<Vec<crate::storage::GameSummary>> {
     async { state.ready()?.page(&request).await }
+        .await
+        .map_err(public_error)
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryInfo {
+    total: i64,
+    source: String,
+    diagnostics: bool,
+}
+
+#[tauri::command]
+pub async fn library_get_info(
+    state: tauri::State<'_, crate::DatabaseState>,
+) -> crate::storage::Result<LibraryInfo> {
+    async {
+        Ok(LibraryInfo {
+            total: state.ready()?.counts().await?.games,
+            source: state.source.clone(),
+            diagnostics: cfg!(any(debug_assertions, feature = "benchmarks")),
+        })
+    }
+    .await
+    .map_err(public_error)
+}
+
+#[tauri::command]
+pub async fn library_get_window(
+    state: tauri::State<'_, crate::DatabaseState>,
+    request: crate::storage::PageRequest,
+) -> crate::storage::Result<crate::storage::LibraryWindow> {
+    async { state.ready()?.window(&request).await }
         .await
         .map_err(public_error)
 }

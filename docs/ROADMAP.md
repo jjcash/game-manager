@@ -1,16 +1,18 @@
 # Roadmap
 
-Status: **M0 is in progress: M0.1 Project Bootstrap and M0.2 SQLite Foundation complete; M0.1.1 CI awaits GitHub verification.** M0.3 and M1–M5 have not started. See [PROJECT_STATUS](PROJECT_STATUS.md) for verified progress and limitations; database timings do not establish frontend performance.
+Status: **M0 is in progress: M0.1, M0.2 and M0.3 complete; M0.1.1 CI awaits documented GitHub verification.** M0.4 and M1–M5 have not started. See [PROJECT_STATUS](PROJECT_STATUS.md) for verified scope and limitations; frontend measurements do not complete the broader M0 gate.
 
 ## M0 — Performance-validation prototype
 
 - [x] Tauri desktop window with one dark theme — M0.1 native window and Rust IPC verified; see [evidence](development/M0.1_VERIFICATION.md).
 - [x] SQLite database with 15,000 realistic synthetic game records — M0.2 also verifies 500, 2,000, 5,000, 12,320 and 25,000; see [database evidence](development/M0.2_VERIFICATION.md).
-- [ ] Virtualized Details View with sortable columns.
+- [x] Virtualized Details View over actual Rust/SQLite summaries, bounded caching and keyboard navigation — M0.3.
+- [ ] General column sorting UI (M0.3 fixes ascending title order).
 - [ ] Search and filter commands in Rust.
 - [ ] Realistic thumbnail loading and bounded caching.
 - [ ] Background import simulator with progress and safe cancellation.
 - [ ] Measure startup, scrolling, search, memory and interaction under load.
+- [x] Record initial Details View readiness, scrolling/frame intervals, IPC/query durations and memory point samples at 500, 12,320, 15,000 and 25,000 — M0.3; wider startup/load/long-session work remains open.
 - [ ] Run comparable SSD and HDD measurements.
 
 Scale fixtures through 500, 2,000, 5,000, 12,320, 15,000 and 25,000 records. Use the known Ryzen 5 4500/64 GB system as one reference, plus lower-memory testing. Record release build/version, hardware, storage placement, cache state, dataset seed/version and concurrent work. TAS contains the recovered provisional targets; no target is already achieved. Establish actual build/format/lint/test commands.
@@ -41,7 +43,19 @@ No installer publishing, deployment, signing, or benchmark gates are part of M0.
 
 Complete; see [M0.2 verification](development/M0.2_VERIFICATION.md). These database-only results do not complete M0. HDD, OS-cold, lower-memory, scrolling, artwork and concurrent-background-work evidence remain outstanding. No real user/game data was used, and no Git commit or push was performed.
 
-Next proposed scope is M0.3's virtualized Details View over bounded Rust summaries, including frontend readiness/error handling, bounded caching and measured frame time/memory. It requires separate authorization and has not started.
+M0.3 subsequently connects this service to the actual frontend; see the verified slice below.
+
+### M0.3 — Virtualized Details View and Frontend Performance Validation
+
+- [x] Narrow typed info/window IPC, structured errors, existing 200-row server limit and deterministic canonical ordering.
+- [x] TanStack Virtual fixed-height Details View, bounded TanStack Query pages, one active native page invocation and Zustand UI selection/position.
+- [x] Loading, empty, partial failure/retry, refresh generations, stale-response cleanup, keyboard navigation and stable selection tests.
+- [x] Explicit read-only synthetic dataset configuration, purpose/migration/completion/count validation and development diagnostics.
+- [x] Pass existing/new checks (19 frontend and 18 Rust tests), production frontend and native Tauri builds.
+- [x] Real native runs twice each at 500, 12,320, 15,000 and 25,000; actual end rows, wheel/rapid/distributed scrolling, selection, return navigation and emulated viewport/scaling.
+- [x] Record timing/frame/memory evidence and limitations; inspect native 15,000-game UI and missing-database failure without creating a database.
+
+Complete within this scope; see [M0.3 verification](development/M0.3_VERIFICATION.md). Initial usable Library commits measured 113.9–179.6 ms from component creation. Peak mounted rows were 26, retained page entries six and active native page invocations one. IPC tail latency and occasional long frames remain findings to investigate; no FPS, controlled cold-start or sustained-memory target is claimed. Physical Windows scaling, HDD and lower-memory validation remain outstanding. No commit/push or M0.4 work was performed. M0.4 requires separate authorization and an agreed scope.
 
 ## M1 — Library foundation
 

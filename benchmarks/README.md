@@ -29,3 +29,19 @@ Each transaction inserts at most 250 games and their associated entries/installa
 Measurements use the actual summary service: 100 rows sorted ascending by `(sort_title, id)` or `(release_date, id)`, at offsets 0, half the dataset, and the last 100 rows. Release-date NULLs sort first. Every warm result is compared with the first result. First query after pool reopen and warm min/median/p95/max are reported separately. The OS file cache is retained; neither is a controlled OS-cold measurement. Reopening also measures schema validation and WAL/pool setup. Generation time excludes initialization, post-generation integrity checks, and final checkpoint/close. Size is the main SQLite file after all connections close, not a live-WAL copy.
 
 Record CPU, RAM, OS, physical storage/filesystem, absolute data path, seed, generator version, build/toolchain, iterations, cache state, and concurrent work alongside each baseline. Do not compare SSD/HDD or lower-memory behavior unless those configurations were actually measured. Scrolling, IPC, search/filtering, frame time, artwork and concurrent import performance remain later milestones.
+
+## Native frontend scenarios (M0.3)
+
+Build with `pnpm tauri build --no-bundle --features benchmarks -- --locked` from `apps/desktop`, then run from the repository root:
+
+```powershell
+./benchmarks/frontend.ps1 -DatabaseDirectory E:\dev\game-manager\benchmarks\data\m0.2-2026-10-25-01 -ResultsDirectory E:\dev\game-manager\benchmarks\results\m0.3-run-01
+```
+
+Use a new results directory; close existing Game Manager windows first. Node 26 supplies fetch/WebSocket; no driver package or data server is installed. The runner starts the real bundled native app against each existing seed-42 benchmark twice (500, 12,320, 15,000 and 25,000), using a separate WebView profile. Override `-Sizes` or `-Runs` for targeted repeats. Databases are opened read-only, and SHA-256 is checked before/after. Reports, profiles and stderr stay in ignored `benchmarks/results/`.
+
+Remote debugging is explicitly enabled for these child processes on loopback port 9223. It is not enabled by application code or normal startup. `frontend.mjs` attaches only to a matching local WebView URL. It measures initial readiness, dispatches 25 wheel events, performs 100 successive-frame long-distance scroll jumps and 20 distributed windows waited through actual row arrival, presses End and Arrow Up, selects a row, navigates away/back, emulates a 900x650 viewport at scale 1.25, and verifies selection/scroll restoration. Missing-database launches also exercise the error/retry path; page failure/retry and transport cancellation are automated frontend tests. All ordinary pages come from actual Rust/SQLite IPC.
+
+Viewport emulation is not physical window resizing or changing Windows display scaling. Programmatic scroll jumps exercise the arbitrary-offset data path but are not physical scrollbar dragging. Frame samples include automation/idle intervals and must not be presented as achieved FPS. Process-tree private bytes are a point-in-time aggregate, not a leak test; summed working sets can double-count shared pages. First and repeated process runs retain the OS filesystem cache. Neither is a controlled cold-disk startup. Build first and wait for other compilation/check work to finish before measuring.
+
+For manual inspection, set `GAME_MANAGER_BENCHMARK_DB` to the existing absolute dataset path and launch a `benchmarks` build. Development diagnostics identify the source/size and offer frame sampling. For actual React Profiler durations, use `pnpm desktop:dev --features benchmarks`; optimized React builds report no render-duration samples. The verification report records native UI automation success/failure separately.
