@@ -4,6 +4,7 @@ version = "0.1.0"
 license = "GPL-3.0-or-later"
 description = "Local-first Windows game library, launcher, and mod manager"
 edition = "2024"
+default-run = "game-manager"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -20,9 +21,20 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
+sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "sqlite", "migrate", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "fs"] }
+serde_json = "1"
+
+[features]
+benchmarks = []
+
+[[bin]]
+name = "library-bench"
+path = "src/bin/library-bench.rs"
+required-features = ["benchmarks"]
 
 [dev-dependencies]
-serde_json = "1"
+tempfile = "3"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

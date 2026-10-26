@@ -2,9 +2,11 @@
 
 A free and open-source, local-first Windows desktop game library, launcher, and integrated mod manager in early development. Large-library performance, safe mod operations, and a polished interface are core requirements.
 
-**M0.1 desktop bootstrap is complete.** The application shell lives in `apps/desktop/`; debug and release builds have been launched with real Rust IPC verified. Library and mod functionality are clearly marked placeholders. See [project status](docs/PROJECT_STATUS.md) for verified progress; no performance target has been measured.
+**M0.2 SQLite foundation is complete.** The application shell lives in `apps/desktop/`, with Rust-owned migrations, bounded summary services and isolated deterministic synthetic datasets. All six database scales through 25,000 games have been measured in release mode. Library and mod screens remain placeholders; frontend/scrolling performance is not yet verified. See [project status](docs/PROJECT_STATUS.md).
 
 The [M0.1 verification report](docs/development/M0.1_VERIFICATION.md) records the environment, exact dependency versions, checks, file inventory, and limitations.
+
+The [M0.2 verification report](docs/development/M0.2_VERIFICATION.md) records the SQLite schema, safety tests, dataset counts and actual database timings.
 
 ## Read the documentation
 
@@ -62,20 +64,20 @@ $env:Path = "$env:USERPROFILE\.cargo\bin;$env:LOCALAPPDATA\pnpm\bin;$env:Path"
 
 Run these from `apps/desktop/`:
 
-| Command              | Purpose                                                         |
-| -------------------- | --------------------------------------------------------------- |
-| `pnpm desktop:dev`   | Launch the desktop development app with reload                  |
-| `pnpm dev`           | Frontend-only Vite server; Rust IPC unavailable                 |
-| `pnpm build`         | Type-check frontend/configuration and build frontend assets     |
-| `pnpm desktop:build` | Build the release desktop executable without installer bundling |
-| `pnpm preview`       | Preview built frontend assets; Rust IPC unavailable             |
-| `pnpm typecheck`     | TypeScript checks, including Vite/Vitest configuration          |
-| `pnpm lint`          | ESLint; warnings fail the check                                 |
-| `pnpm lint:rust`     | Clippy across Rust targets; warnings fail the check             |
-| `pnpm format`        | Apply Prettier and rustfmt                                      |
-| `pnpm format:check`  | Check Prettier and rustfmt                                      |
-| `pnpm test`          | Frontend IPC and shell unit tests                               |
-| `pnpm test:rust`     | Rust serialization contract test                                |
+| Command              | Purpose                                                           |
+| -------------------- | ----------------------------------------------------------------- |
+| `pnpm desktop:dev`   | Launch the desktop development app with reload                    |
+| `pnpm dev`           | Frontend-only Vite server; Rust IPC unavailable                   |
+| `pnpm build`         | Type-check frontend/configuration and build frontend assets       |
+| `pnpm desktop:build` | Build the release desktop executable without installer bundling   |
+| `pnpm preview`       | Preview built frontend assets; Rust IPC unavailable               |
+| `pnpm typecheck`     | TypeScript checks, including Vite/Vitest configuration            |
+| `pnpm lint`          | ESLint; warnings fail the check                                   |
+| `pnpm lint:rust`     | Clippy across Rust targets; warnings fail the check               |
+| `pnpm format`        | Apply Prettier and rustfmt                                        |
+| `pnpm format:check`  | Check Prettier and rustfmt                                        |
+| `pnpm test`          | Frontend IPC and shell unit tests                                 |
+| `pnpm test:rust`     | Rust contract, database, migrations and synthetic generator tests |
 
 The release executable is `apps/desktop/src-tauri/target/release/game-manager.exe`. This is a development verification artifact, not a portable distribution or installed release. Installer format, signing, updating, and the supported Windows matrix remain M5 work. First builds download Rust dependencies and can take several minutes. pnpm and Cargo lockfiles are included; generated assets and build outputs are ignored.
 
@@ -95,7 +97,9 @@ apps/desktop/
     components/        Shell icons and backend-connection panel
     ipc/               Narrow IPC wrapper, runtime validation, shared fixture
   src-tauri/
-    src/               Rust entry points and read-only app_get_status command
+    src/               Rust entry points, storage service and narrow read commands
+    migrations/        Versioned SQLx SQLite migrations
+    tests/             Disposable database integration tests
     capabilities/      Main-window command permission
     icons/             Template desktop icons; final branding deferred
   package.json         Development commands and frontend dependencies
@@ -104,9 +108,37 @@ apps/desktop/
 docs/                  Requirements, accepted decisions, roadmap, actual status
 ```
 
-Rust owns backend logic. React receives a validated `{ appName, version, backend }` status through Tauri IPC; a shared fixture is checked by both Rust and TypeScript tests. The main local window has permission only for that application command, with no filesystem, shell, opener, database, or remote-origin permissions. Release CSP allows local assets and IPC; development CSP additionally permits Vite reload.
+Rust owns backend logic and SQLite. React receives a validated `{ appName, version, backend }` status through the unchanged `app_get_status` command; a shared fixture is checked by Rust and TypeScript tests. The local main window can also call narrow, read-only `database_get_status` and `library_get_page` commands. There is no generic SQL, filesystem, shell, opener, or remote-origin permission. Release CSP allows local assets and IPC; development CSP additionally permits Vite reload.
 
-SQLite, benchmark datasets, virtualization, imports, search/filtering, launching games, mod operations, integrations, jobs, cloud/mobile/Game Tools, and installer delivery are not implemented in M0.1. M0 as a whole remains incomplete. Do not begin M0.2 without separate authorization.
+Virtualization, imports, search/filtering, launching games, mod operations, integrations, jobs, cloud/mobile/Game Tools, and installer delivery remain unimplemented. M0 as a whole remains incomplete. M0.3 requires separate authorization.
+
+## SQLite setup and synthetic benchmarks
+
+The desktop initializes SQLite asynchronously in Rust before library reads become available. No SQLx CLI or external database server is needed: migrations are embedded in the executable. Normal storage defaults to `%LOCALAPPDATA%\io.github.game-manager.desktop\database\library.sqlite3`, resolved through Tauri's installed application path API. It is independent of the checkout. An optional absolute local `GAME_MANAGER_DATA_DIR` selects the initial installed data root; it does not move an existing database. Set it only before launching, for example to a new disposable development root:
+
+```powershell
+$env:GAME_MANAGER_DATA_DIR = 'E:\dev\game-manager\benchmarks\data\desktop-smoke-example'
+pnpm --dir apps/desktop desktop:dev
+Remove-Item Env:GAME_MANAGER_DATA_DIR
+```
+
+Without that override, the application creates an empty persistent library. It never seeds it. Foreign keys are enabled per connection, with a four-connection maximum, WAL, FULL synchronous durability, five-second busy timeout, and versioned/checksummed migrations. Initialization errors preserve the file and expose structured failure status; `app_get_status` remains a backend probe independently of database readiness. The current shell does not display database state; new commands are ready for the next library milestone. Startup diagnostics are written as local JSON errors, and IPC error messages omit private path/SQL details.
+
+From the repository root, create all six synthetic sizes in a **new**, explicitly configured benchmark directory:
+
+```powershell
+./benchmarks/run.ps1 -DatabaseDirectory E:\dev\game-manager\benchmarks\data\run-01 -Seed 42 -Iterations 50
+```
+
+For a single dataset:
+
+```powershell
+cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml --bin library-bench --features benchmarks --release --locked
+./apps/desktop/src-tauri/target/release/library-bench.exe generate --database E:\dev\game-manager\benchmarks\data\example.sqlite3 --games 15000 --seed 42
+./apps/desktop/src-tauri/target/release/library-bench.exe measure --database E:\dev\game-manager\benchmarks\data\example.sqlite3 --iterations 50
+```
+
+The generator supports 500, 2,000, 5,000, 12,320, 15,000 and 25,000 canonical games. It requires a new file, refuses existing databases/sidecars, and has no overwrite mode. A database purpose marker separates benchmark and application libraries. Repeated generation uses a new path; measurement reuses an existing complete benchmark. No real accounts, libraries, game files, or artwork are accessed. Generated databases/results are ignored by Git. See [benchmark methodology](benchmarks/README.md) and [M0.2 verification](docs/development/M0.2_VERIFICATION.md) for schema simplifications, exact counts, checks and actual database timings.
 
 ## License
 

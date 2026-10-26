@@ -6,6 +6,8 @@ Game Manager is a free and open-source, performance-first Windows desktop applic
 
 The application is local-first and must remain usable without cloud services.
 
+Original Game Manager software code is licensed under `GPL-3.0-or-later`: GNU GPL version 3 or, at the recipient's option, any later version. Preserve third-party notices and licenses; the project license does not automatically relicense external content. See `LICENSE` and `docs/decisions/ADR-006-software-license.md`.
+
 ## Authoritative project documentation
 
 Before making architectural or significant implementation decisions, consult:
@@ -167,7 +169,7 @@ Installed Windows only. Portable mode, portable release variants, automatic relo
 
 ## Evidence, status and deferred work
 
-Current explicit user instructions take precedence. Accepted ADRs and the decision register establish direction; detailed SQL, DTOs, traits, job internals, path layouts, installer/update choices and provisional budgets require implementation validation. PROJECT_STATUS governs completion claims. The five ADR filenames are stable; historical chat numbering is mapped in the source register.
+Current explicit user instructions take precedence. Accepted ADRs and the decision register establish direction; detailed SQL, DTOs, traits, job internals, path layouts, installer/update choices and provisional budgets require implementation validation. PROJECT_STATUS governs completion claims. The original ADR-001 through ADR-005 filenames remain stable; historical chat numbering is mapped in the source register. ADR-006 records the later software-license decision.
 
 The reference system is Ryzen 5 4500 with 64 GB RAM, with HDD games and optional SSD application data. This is not a minimum requirement. Test 500, 2,000, 5,000, 12,320, 15,000 and 25,000 entries; validate lower-memory configurations too. Original latency/frame targets are recorded in TAS as provisional, unmeasured goals.
 

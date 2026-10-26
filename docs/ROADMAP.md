@@ -1,11 +1,11 @@
 # Roadmap
 
-Status: **M0 is in progress: M0.1 Project Bootstrap complete; M0.1.1 CI awaits GitHub verification; remaining prototype work pending.** M1–M5 have not started. No dates are committed. See [PROJECT_STATUS](PROJECT_STATUS.md) for verified progress and limitations; preparing documentation is not prototype completion.
+Status: **M0 is in progress: M0.1 Project Bootstrap and M0.2 SQLite Foundation complete; M0.1.1 CI awaits GitHub verification.** M0.3 and M1–M5 have not started. See [PROJECT_STATUS](PROJECT_STATUS.md) for verified progress and limitations; database timings do not establish frontend performance.
 
 ## M0 — Performance-validation prototype
 
 - [x] Tauri desktop window with one dark theme — M0.1 native window and Rust IPC verified; see [evidence](development/M0.1_VERIFICATION.md).
-- [ ] SQLite database with 15,000 realistic synthetic game records.
+- [x] SQLite database with 15,000 realistic synthetic game records — M0.2 also verifies 500, 2,000, 5,000, 12,320 and 25,000; see [database evidence](development/M0.2_VERIFICATION.md).
 - [ ] Virtualized Details View with sortable columns.
 - [ ] Search and filter commands in Rust.
 - [ ] Realistic thumbnail loading and bounded caching.
@@ -19,14 +19,29 @@ Exit: reproducible 15,000-game measurements and a documented architecture assess
 
 ### M0.1.1 — Continuous Integration Foundation
 
-This quality gate follows the verified M0.1 bootstrap and precedes M0.2. See the [CI verification report](development/M0.1.1_CI_VERIFICATION.md) for commands, results, pinned versions, and limitations.
+This CI foundation follows the verified M0.1 bootstrap. Its GitHub verification remains outstanding; the user's subsequent request separately authorized M0.2. See the [CI verification report](development/M0.1.1_CI_VERIFICATION.md) for commands, results, pinned versions, and limitations.
 
 - [x] Prepare a Windows GitHub Actions workflow for pull requests to `main`, pushes to `main`, and manual runs.
 - [x] Configure existing quality/build commands, pinned tools/actions, frozen dependency installation, dependency-only caches, least-privilege permissions, and cancellation of superseded runs.
 - [x] Validate workflow structure and pass equivalent Windows local quality checks, frontend/Rust tests, and the release frontend/native build.
 - [ ] Complete M0.1.1: approve commit/push, obtain a successful GitHub run, and record its URL/result. Local checks alone do not complete this milestone.
 
-M0.2 remains unstarted and requires separate authorization. No installer publishing, deployment, signing, or benchmark gates are part of M0.1.1.
+No installer publishing, deployment, signing, or benchmark gates are part of M0.1.1.
+
+### M0.2 — SQLite Foundation and Synthetic Game Dataset
+
+- [x] Rust-owned SQLx SQLite initialization, embedded checksummed migration, foreign keys on every connection, bounded pool and evaluated WAL configuration.
+- [x] Initial canonical games, sources, library entries and installations with constraints/indexes; prototype simplifications documented.
+- [x] Deterministic seed-configured generation at all six required sizes, with multi-entry/multi-copy relationships and bounded bulk transactions.
+- [x] Explicit isolated benchmark paths, create-new/no-overwrite safety, purpose markers, incomplete-generation handling and Git exclusions.
+- [x] Typed status/count/bounded summary services and narrow read-only commands; original app status behavior retained.
+- [x] Verify initialization/reopen, constraints, pool FK policy, pagination, generation, path failures and migration/partial-batch failure preservation with disposable fixtures.
+- [x] Record release database initialization/generation, closed file sizes and indexed title/release page timings at all sizes; preserve SSD environment, seed, parameters and iteration evidence.
+- [x] Frontend checks, all-feature Rust formatting/Clippy/tests, release native build, isolated native smoke check, and documentation.
+
+Complete; see [M0.2 verification](development/M0.2_VERIFICATION.md). These database-only results do not complete M0. HDD, OS-cold, lower-memory, scrolling, artwork and concurrent-background-work evidence remain outstanding. No real user/game data was used, and no Git commit or push was performed.
+
+Next proposed scope is M0.3's virtualized Details View over bounded Rust summaries, including frontend readiness/error handling, bounded caching and measured frame time/memory. It requires separate authorization and has not started.
 
 ## M1 — Library foundation
 
