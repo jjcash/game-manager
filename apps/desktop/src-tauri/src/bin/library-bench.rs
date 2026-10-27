@@ -77,6 +77,28 @@ async fn run() -> storage::Result<()> {
     );
     storage::validate_path(&path)?;
     match action.as_str() {
+        "query-diagnose" => {
+            let all_strategies = match options.remove("--strategies").as_deref().unwrap_or("all") {
+                "all" => true,
+                "finalists" => false,
+                _ => return Err(invalid("Strategies must be all or finalists")),
+            };
+            let iterations: u32 = options
+                .remove("--iterations")
+                .unwrap_or_else(|| "50".into())
+                .parse()
+                .map_err(invalid)?;
+            if !options.is_empty() {
+                return Err(invalid("Unknown diagnostic option"));
+            }
+            let db = storage::Database::benchmark_view(&path).await?;
+            let report = db.diagnose_queries(iterations, all_strategies).await?;
+            db.close().await;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&report).expect("serializable report")
+            );
+        }
         "query-measure" => {
             let artwork_root = options.remove("--artwork").map(PathBuf::from);
             let iterations: u32 = options
@@ -356,14 +378,22 @@ async fn measure_queries(
         let mut counts = Vec::new();
         let mut pages = Vec::new();
         let mut combined = Vec::new();
+        let mut count_execution = Vec::new();
+        let mut page_execution = Vec::new();
+        let mut count_pool = Vec::new();
+        let mut page_pool = Vec::new();
         for _ in 0..iterations {
             let start = Instant::now();
-            let found = db.query_count(&request.criteria).await?;
+            let (found, count_wait) = db.query_count_timed(&request.criteria).await?;
             let count_ms = start.elapsed().as_secs_f64() * 1000.0;
             let result = db.query_window(&request).await?;
             combined.push(start.elapsed().as_secs_f64() * 1000.0);
             counts.push(count_ms);
             pages.push(result.query_ms);
+            count_execution.push((count_ms - count_wait).max(0.0));
+            page_execution.push((result.query_ms - result.pool_wait_ms.unwrap_or(0.0)).max(0.0));
+            count_pool.push(count_wait);
+            page_pool.push(result.pool_wait_ms.unwrap_or(0.0));
             if found != count
                 || result.items != first.items
                 || result.items.len() != (count - i64::from(request.offset)).clamp(0, 100) as usize
@@ -371,7 +401,7 @@ async fn measure_queries(
                 return Err(invalid("Unstable count/window"));
             }
         }
-        results.push(serde_json::json!({"name":name,"request":request,"count":count,"countMs":timing(counts),"pageMs":timing(pages),"combinedMs":timing(combined),"plans":db.criteria_plans(&request).await?}));
+        results.push(serde_json::json!({"name":name,"request":request,"count":count,"countMs":timing(counts.clone()),"pageMs":timing(pages.clone()),"combinedMs":timing(combined.clone()),"countExecutionMs":timing(count_execution),"pageExecutionMs":timing(page_execution),"countPoolMs":timing(count_pool),"pagePoolMs":timing(page_pool),"samples":{"count":counts,"page":pages,"combined":combined},"plans":db.criteria_plans(&request).await?}));
     }
     db.close().await;
     stop.store(true, std::sync::atomic::Ordering::Relaxed);

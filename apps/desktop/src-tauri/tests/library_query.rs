@@ -299,3 +299,156 @@ async fn empty_no_match_and_request_validation_do_not_hide_errors() {
     db.close().await;
     assert!(db.query_count(&Criteria::default()).await.is_err());
 }
+
+#[tokio::test]
+async fn presence_and_membership_writes_keep_exact_complements_and_global_summaries() {
+    let (dir, db) = fixture().await;
+    let mut writer = SqliteConnection::connect_with(
+        &SqliteConnectOptions::new()
+            .filename(dir.path().join("query.sqlite3"))
+            .foreign_keys(true),
+    )
+    .await
+    .unwrap();
+    // Multiple present copies, including two on one entry, must remain one row.
+    sqlx::raw_sql("INSERT INTO game_installations VALUES ('i3','a2','synthetic://second','windows',NULL,'present'),('i4','b1','synthetic://b','windows',NULL,'unknown');
+        INSERT INTO library_entries VALUES ('b2','b','s2','4','playing',0);").execute(&mut writer).await.unwrap();
+    for state in ["present", "missing", "unknown", "present"] {
+        sqlx::query("UPDATE game_installations SET detection_state=? WHERE entry_id='a2'")
+            .bind(state)
+            .execute(&mut writer)
+            .await
+            .unwrap();
+        for source in [None, Some("s1"), Some("s2"), Some("absent")] {
+            for search in ["", "alpha", "%", "星の"] {
+                let mut sets = Vec::new();
+                for installed in [
+                    InstallationFilter::All,
+                    InstallationFilter::Installed,
+                    InstallationFilter::NotInstalled,
+                ] {
+                    let criteria = Criteria {
+                        source_id: source.map(str::to_string),
+                        search: search.into(),
+                        installed,
+                        ..Default::default()
+                    };
+                    let count = db.query_count(&criteria).await.unwrap();
+                    let rows = db
+                        .query_window(&request(criteria.clone(), 0, 200))
+                        .await
+                        .unwrap()
+                        .items;
+                    assert_eq!(count as usize, rows.len());
+                    let ids = rows
+                        .iter()
+                        .map(|r| r.id.clone())
+                        .collect::<std::collections::BTreeSet<_>>();
+                    assert_eq!(ids.len(), rows.len());
+                    for row in rows {
+                        if row.id == "a" {
+                            assert_eq!(row.installed, state == "present");
+                            assert_eq!(row.entry_count, 2);
+                            assert_eq!(row.installation_count, 3);
+                        }
+                        if matches!(installed, InstallationFilter::Installed) {
+                            assert!(row.installed);
+                        }
+                        if matches!(installed, InstallationFilter::NotInstalled) {
+                            assert!(!row.installed);
+                        }
+                    }
+                    let past = db
+                        .query_window(&request(criteria, count as u32, 1))
+                        .await
+                        .unwrap();
+                    assert!(past.items.is_empty());
+                    sets.push(ids);
+                }
+                assert!(sets[1].is_disjoint(&sets[2]));
+                assert_eq!(sets[0], sets[1].union(&sets[2]).cloned().collect());
+            }
+        }
+    }
+    // Reassignment/deletion must immediately affect membership; no cached count survives.
+    sqlx::raw_sql("UPDATE library_entries SET game_id='b' WHERE id='a2'; DELETE FROM game_installations WHERE entry_id='a1'; DELETE FROM library_entries WHERE id='a1';").execute(&mut writer).await.unwrap();
+    let installed = Criteria {
+        installed: InstallationFilter::Installed,
+        source_id: Some("s1".into()),
+        ..Default::default()
+    };
+    assert_eq!(db.query_count(&installed).await.unwrap(), 1);
+    assert_eq!(
+        db.query_window(&request(installed, 0, 100))
+            .await
+            .unwrap()
+            .items[0]
+            .id,
+        "b"
+    );
+    writer.close().await.unwrap();
+    db.validate().await.unwrap();
+    db.close().await;
+}
+
+#[tokio::test]
+async fn wal_readers_observe_atomic_presence_batches_without_stale_counts() {
+    let (dir, db) = fixture().await;
+    let mut writer = SqliteConnection::connect_with(
+        &SqliteConnectOptions::new()
+            .filename(dir.path().join("query.sqlite3"))
+            .foreign_keys(true),
+    )
+    .await
+    .unwrap();
+    sqlx::query("INSERT INTO game_installations VALUES ('ib','b1','synthetic://b','windows',NULL,'missing')").execute(&mut writer).await.unwrap();
+    let writes = tokio::spawn(async move {
+        for turn in 0..80 {
+            let mut transaction = writer.begin().await.unwrap();
+            sqlx::query("UPDATE game_installations SET detection_state=CASE WHEN id=? THEN 'present' ELSE 'missing' END")
+                .bind(if turn%2==0 {"ib"} else {"i2"}).execute(&mut *transaction).await.unwrap();
+            transaction.commit().await.unwrap();
+            tokio::task::yield_now().await;
+        }
+        writer.close().await.unwrap();
+    });
+    let installed = Criteria {
+        installed: InstallationFilter::Installed,
+        ..Default::default()
+    };
+    for _ in 0..80 {
+        assert_eq!(db.query_count(&installed).await.unwrap(), 1);
+        let rows = db
+            .query_window(&request(installed.clone(), 0, 100))
+            .await
+            .unwrap()
+            .items;
+        assert_eq!(rows.len(), 1);
+        assert!(rows[0].installed);
+        assert!(["a", "b"].contains(&rows[0].id.as_str()));
+        assert_eq!(
+            db.query_count(&Criteria {
+                installed: InstallationFilter::NotInstalled,
+                ..Default::default()
+            })
+            .await
+            .unwrap(),
+            5
+        );
+    }
+    writes.await.unwrap();
+    db.validate().await.unwrap();
+    db.close().await;
+}
+
+#[cfg(feature = "benchmarks")]
+#[tokio::test]
+async fn diagnostic_strategies_and_split_projection_preserve_fixture_rows() {
+    let (_dir, db) = fixture().await;
+    let report = db.diagnose_queries(1, true).await.unwrap();
+    assert_eq!(report["scenarios"].as_array().unwrap().len(), 238);
+    let finalists = db.diagnose_queries(1, false).await.unwrap();
+    assert_eq!(finalists["scenarios"].as_array().unwrap().len(), 68);
+    assert!(db.diagnose_queries(0, false).await.is_err());
+    db.close().await;
+}

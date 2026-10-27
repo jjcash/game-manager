@@ -140,3 +140,28 @@ It accepts `-Sizes`, `-Variants`, `-ClosedDiagnostics`, `-NoArtwork` and `-Untra
 Per-trial frame arrays avoid slicing an already-full global ring. The summarizer selects the marked renderer thread, keeps Layout wall/thread CPU separate and does not add nested JavaScript spans to Layout. Missing CPU data stays unavailable. Frame distributions include automation/idle time; commit, rAF, long tasks and paint/presentation are different measures. Final process-memory points are outside frame capture. Native traces, not unit timing thresholds, establish performance evidence.
 
 All three PowerShell runners now share `process-memory.ps1`: process creation times validate ancestry and protect against counting older orphan processes after PID reuse. Reports retain per-PID identities, creation times and private bytes. Run `./benchmarks/process-memory.test.ps1` for deterministic ancestry/missing-root checks and live serialization verification. Older aggregate-only points cannot be retroactively corrected; M0.7A retains an unexplained 718-MiB historical control point and a separate corrected-sampler repeat. Summed working sets can double-count shared pages, and point samples do not establish memory bounds.
+
+## M0.7B SQLite query diagnostics
+
+Build `library-bench` with the locked release/benchmark configuration. `query-diagnose` opens an existing synthetic database read-only and compares the historical predicate with six controlled query-shape candidates. It records actual SQL, bound-parameter descriptions, separate count/page/ID-selection plans, execution distributions/raw samples, pool acquisition, split bounded projection and `dbstat` table/index sizes. Every sample checks count and complete row equality; candidate order reverses each round after equal warmups. This diagnostic command is never exposed through IPC.
+
+```powershell
+./benchmarks/query.ps1 `
+  -DatabaseDirectory E:\dev\game-manager\benchmarks\data\m0.2-2026-10-25-01 `
+  -ResultsDirectory E:\dev\game-manager\benchmarks\results\m0.7b-diagnose-new `
+  -Executables @('E:\dev\game-manager\apps\desktop\src-tauri\target\release\library-bench.exe') `
+  -Diagnose -Strategies finalists -Passes 1 -Iterations 50
+
+# Compare retained baseline/candidate CLI artifacts using the original 14 cases.
+./benchmarks/query.ps1 `
+  -DatabaseDirectory E:\dev\game-manager\benchmarks\data\m0.2-2026-10-25-01 `
+  -ResultsDirectory E:\dev\game-manager\benchmarks\results\m0.7b-paired-new `
+  -Executables @('E:\dev\game-manager\benchmarks\results\m0.7b-baseline\library-bench.exe', 'E:\dev\game-manager\benchmarks\results\m0.7b-candidate\library-bench.exe') `
+  -Passes 2 -Iterations 50
+```
+
+The four default sizes are 500/12,320/15,000/25,000. `-Strategies finalists` compares the historical and selected ordered entry-set shapes; omit it to evaluate all seven strategies. Results record source hashes, binary hashes, hardware/build/cache conditions and reverse artifact order each pass. Source files are hash-checked after each invocation. Use new output directories; stop competing builds/tests before collection. OS caches remain warm. Execution timers include SQLx preparation/worker/decoding overhead; split selection/projection are additional diagnostic queries and cannot be added to the full-statement timer. Native IPC, criteria-to-visible commits, renderer frames, background duty and process memory still require the established frontend/background runners. Do not compare traced versus untraced or split-diagnostic versus ordinary page timings interchangeably.
+
+`query-measure` retains its original timing fields and adds execution-minus-pool distributions, count/page pool waits and raw paired samples. The historical retained binary has only its original fields. See [M0.7B verification](../docs/development/M0.7B_VERIFICATION.md) for candidate selection, actual plans, correctness and native before/after evidence. No cache, schema migration or FTS behavior is implied by running diagnostics.
+
+The existing native `-QueryScenarios` driver also records `deepWindows`: 20 distributed installed/title-descending windows and 20 not-installed/title-ascending windows, each waited through an actually loaded row intersecting the viewport. Durations use the WebView clock and include CDP/polling overhead; they are observed DOM arrival, not paint/presentation or physical input latency. Small libraries naturally reuse cached pages; larger distributed jumps exercise ordinary page eviction. Existing scenario counts, exact complements, sorts, End selection, rapid criteria checks and row/cache/request bounds remain in place. Use identical drivers/artwork/load settings for artifact comparisons.

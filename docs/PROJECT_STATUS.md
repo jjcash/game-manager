@@ -1,33 +1,33 @@
 # Project Status
 
-Last verification: 2026-10-27. See [M0.1 evidence](development/M0.1_VERIFICATION.md), [M0.1.1 CI verification](development/M0.1.1_CI_VERIFICATION.md), [M0.2 database evidence](development/M0.2_VERIFICATION.md), [M0.3 frontend evidence](development/M0.3_VERIFICATION.md), [M0.4 search/filter/sort verification](development/M0.4_VERIFICATION.md), [M0.5 artwork verification](development/M0.5_VERIFICATION.md), [M0.6 background-load verification](development/M0.6_VERIFICATION.md), and [M0.7A renderer verification](development/M0.7A_VERIFICATION.md).
+Last verification: 2026-10-27. See [M0.1 evidence](development/M0.1_VERIFICATION.md), [M0.1.1 CI verification](development/M0.1.1_CI_VERIFICATION.md), [M0.2 database evidence](development/M0.2_VERIFICATION.md), [M0.3 frontend evidence](development/M0.3_VERIFICATION.md), [M0.4 search/filter/sort verification](development/M0.4_VERIFICATION.md), [M0.5 artwork verification](development/M0.5_VERIFICATION.md), [M0.6 background-load verification](development/M0.6_VERIFICATION.md), [M0.7A renderer verification](development/M0.7A_VERIFICATION.md), and [M0.7B SQL/latency verification](development/M0.7B_VERIFICATION.md).
 
 ## Actual state
 
-**M0.1 through M0.6 and M0.7A are complete within their verified synthetic scope.** The Rust/SQLite-backed virtualized Details View supports search/filter/sort, bounded synthetic thumbnails and feature-gated background jobs with progress/cancellation. M0.7A identifies first-use Japanese font work as a major contributor to the reproduced sort Layout stall and scopes an optional explicit fallback to game titles. Repeated 15,000/25,000 native comparisons reduce the measured largest Layout events while preserving bounds and behavior. M0 remains incomplete: provisional latency budgets are not generally met; some commit/script/scroll observations remain worse, the historical 235-ms task is unexplained, and HDD/lower-memory, controlled process startup and longer-session validation remain open. M0.7B/M0.7C have not started.
+**M0.1 through M0.6 and M0.7A/M0.7B are complete within their verified synthetic scope.** The Rust/SQLite-backed virtualized Details View supports search/filter/sort, bounded synthetic thumbnails and feature-gated background jobs with progress/cancellation. M0.7A's optional title-scoped font fallback is preserved. M0.7B uses present-entry sets and indexed canonical ordering to reduce measured broad installed counts/filter latency without an index, migration or count cache. Some complement/deep-page/write-load paths are slower. M0 remains incomplete: stress deep-page budgets, rising process memory, the historical 235-ms task, HDD/lower-memory, controlled startup and longer-session validation remain open. M0.7C has not started.
 
 Historical prototype checkmarks were accidental and explicitly withdrawn by the user. They remain invalid; the progress below comes from the current implementation and checks. Specifications and ADRs retain their planning baseline; this file governs current completion claims.
 
-| Area                                                     | Current status                                                                                                       |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| PRD                                                      | Original detailed baseline recovered and reconciled with later decisions                                             |
-| TAS                                                      | Accepted architectural baseline recovered; implementation sketches still need validation                             |
-| DSS                                                      | Original design retained; initial four-entity prototype translated into tested migration version 1                   |
-| MDRS                                                     | Original detailed protocol recovered; architectural safety direction accepted, protocol remains proposed             |
-| Repository ADRs                                          | ADR-001–005 reconciled; historical labels mapped; ADR-006 accepts GPL-3.0-or-later                                   |
-| Software license                                         | GPL-3.0-or-later accepted; root LICENSE, manifest metadata and first-party SPDX notices added                        |
-| Desktop app and UI                                       | Dark Tauri shell and virtualized Details View with search/filter/sort/thumbnails; Mods/Settings remain placeholders             |
-| Frontend-backend communication                           | Original probes/page commands retained; typed criteria/count/window IPC and runtime validation verified              |
-| Development quality checks                               | Frozen install, TypeScript, lint/format, 38 frontend/44 feature Rust (28 default), measurement tests and frontend/native builds passed |
-| SQLite database/migrations                               | M0.2 complete: SQLx/SQLite, versioned migration, purpose separation, WAL/FK bounded pool, status/count/page services |
-| Details View/grid and artwork pipeline                   | M0.5 compact synthetic thumbnails, bounded jobs/queue/caches verified; cover grid/providers not implemented                        |
-| M0 prototype and benchmarks                              | Shell/SQLite/Details/artwork/synthetic-load slices complete; broader M0 gate and stress limitations remain open               |
-| Synthetic background jobs | M0.6: one active/two queued, shared CPU ceiling two, isolated writes, progress/cancellation; absent from normal native builds |
-| Store imports, launching and activity                    | Not implemented                                                                                                      |
-| Mod adapters, deployment and recovery                    | Not implemented or tested                                                                                            |
-| Continuous integration                                   | M0.1.1 workflow valid; all equivalent local checks passed; first successful GitHub run still required                |
-| Installer, updater and release pipeline                  | Not established                                                                                                      |
-| Game Tools, companion, dashboards, extension marketplace | Deferred                                                                                                             |
+| Area                                                     | Current status                                                                                                                         |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| PRD                                                      | Original detailed baseline recovered and reconciled with later decisions                                                               |
+| TAS                                                      | Accepted architectural baseline recovered; implementation sketches still need validation                                               |
+| DSS                                                      | Original design retained; initial four-entity prototype translated into tested migration version 1                                     |
+| MDRS                                                     | Original detailed protocol recovered; architectural safety direction accepted, protocol remains proposed                               |
+| Repository ADRs                                          | ADR-001–005 reconciled; historical labels mapped; ADR-006 accepts GPL-3.0-or-later                                                     |
+| Software license                                         | GPL-3.0-or-later accepted; root LICENSE, manifest metadata and first-party SPDX notices added                                          |
+| Desktop app and UI                                       | Dark Tauri shell and virtualized Details View with search/filter/sort/thumbnails; Mods/Settings remain placeholders                    |
+| Frontend-backend communication                           | Original probes/page commands retained; typed criteria/count/window IPC and runtime validation verified                                |
+| Development quality checks                               | Frozen install, TypeScript, lint/format, 38 frontend/47 feature Rust (30 default), measurement tests and frontend/native builds passed |
+| SQLite database/migrations                               | M0.2 foundation plus verified M0.7B entry-set queries/diagnostics; schema remains version 1, existing indexes/WAL/FK/pool preserved    |
+| Details View/grid and artwork pipeline                   | M0.5 compact synthetic thumbnails, bounded jobs/queue/caches verified; cover grid/providers not implemented                            |
+| M0 prototype and benchmarks                              | Shell/SQLite/Details/artwork/synthetic-load slices complete; broader M0 gate and stress limitations remain open                        |
+| Synthetic background jobs                                | M0.6: one active/two queued, shared CPU ceiling two, isolated writes, progress/cancellation; absent from normal native builds          |
+| Store imports, launching and activity                    | Not implemented                                                                                                                        |
+| Mod adapters, deployment and recovery                    | Not implemented or tested                                                                                                              |
+| Continuous integration                                   | M0.1.1 workflow valid; all equivalent local checks passed; first successful GitHub run still required                                  |
+| Installer, updater and release pipeline                  | Not established                                                                                                                        |
+| Game Tools, companion, dashboards, extension marketplace | Deferred                                                                                                                               |
 
 ## M0.1 implementation and evidence
 
@@ -109,9 +109,17 @@ Three alternating fresh-process comparisons per artifact/size reduce median larg
 
 The 235-ms historical task, an existing 15-pixel header/body offset, existing grid-focus contrast and a 718-MiB legacy aggregate memory point remain documented. Process sampling now validates creation-time ancestry and stores per-PID records; the old aggregate cannot be retrospectively attributed or dismissed. Physical display scaling, other font configurations, HDD/lower-memory and long-session evidence remain open. No real game/personal data, commit or push was used.
 
+## M0.7B SQLite query and latency evidence
+
+Complete within the SQL/latency investigation scope; see [M0.7B verification](development/M0.7B_VERIFICATION.md). A clean merged M0.7A baseline was measured before changing predicates. Same-engine actual SQL/plans, separate count/page/selection/projection/acquisition timing, seven query shapes and two disposable covering-index experiments support selecting one index-free present-entry-set predicate. Literal search, canonical rows, global installation presence under source filtering, count/window agreement, inclusive dates, NULLs and ID ties remain verified. No cache invalidation, migration, persistent denormalization or extra write maintenance is introduced.
+
+Two alternating ordinary-service passes at 500/12,320/15,000/25,000 retain 11,200 count/window pairs; the 34-shape split matrix retains 13,600 verified groups. Installed count+page p95 is 110.67/132.80 → 53.35/53.31 ms at 15,000 and 215.79/194.86 → 67.43/70.42 ms at 25,000. Forty untraced native load conditions plus four focused traces/four memory controls, 144 query scenarios, 320 loaded filtered-window observations, existing browsing and normal-production isolation pass. Under two artwork workers, installed native IPC p95 improves 149.0 → 79.5 ms at 15,000 and 307.3 → 139.5 ms at 25,000. Bounds remain 26 rows/six pages/one request; CSS and scheduling defaults are unchanged.
+
+Gains are not universal. Mixed-without-thumbnails controls change direction; some not-installed paths regress. Stress title-tail page p95 remains 52.56/61.62 ms, and observed not-installed deep DOM arrival is worse with coarse polling. Paired five-cycle memory runs grow toward roughly 330–342 MiB in both artifacts and do not establish stable memory. Native/Rust/frontend checks pass (47 benchmark-feature / 30 default Rust / 38 frontend tests); no original report, dependency, real game/personal database, commit or push is changed/used.
+
 ## Recommended next separately authorized task
 
-Separately scope M0.7B foreground query/latency investigation before changing SQL/indexes/FTS/caches. Preserve first-use/warm font controls and the unresolved renderer findings; retain 15,000 as release scale and 25,000 as stress. M0.7B/M0.7C, integrations and wider hardware/startup/memory work do not start automatically. No new GitHub CI run or branch-protection enforcement is claimed.
+Separately authorize M0.7C to investigate remaining stress deep-page costs, write-load/cache sensitivity and finer native row-arrival/presentation timing, with paired longer-session memory checks. Preserve M0.7A's first-use/warm font controls, exact filter semantics, default workers and bounded state; justify any later phase-specific query/cache/index policy with new evidence. HDD/lower-memory and controlled startup remain wider M0 gates. M0.7C and integrations do not start automatically. No new GitHub CI run or branch-protection enforcement is claimed.
 
 ## Genuine remaining work
 
