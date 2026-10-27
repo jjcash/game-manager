@@ -104,3 +104,39 @@ $jobs = './apps/desktop/src-tauri/target/release/job-fixtures.exe'
 Root naming, marker/purpose checks, canonical paths, exclusive lease and owned-file inventory restrict cleanup. Close the app before verification/cleanup. Reconstruct by generating a new root. No automatic cleanup of failed generation, source databases, artwork originals or personal data occurs. M0.5's artwork CLI remains the original-source cleanup mechanism.
 
 Normal-production verification uses the existing `frontend.ps1 -NormalSmoke -Sizes 500 -Runs 1` after an ordinary build. It now also verifies absent synthetic controls/rejected job IPC and ignores deliberately invalid synthetic worker/policy/root environment values.
+
+## M0.7A renderer layout investigation
+
+Use the optimized `benchmarks` build and existing synthetic fixtures. See [the verification report](../docs/development/M0.7A_VERIFICATION.md) for the failed reproductions, first-use font evidence and exact retained artifacts. The original M0.6 prelude reproduces a cold Japanese font path when switching installed/not-installed back to all installations and release-date descending. Navigating to the title-sorted tail first warms this path. Report each fresh process's first transition separately from its warm repeats.
+
+```powershell
+./benchmarks/background.ps1 `
+  -DatabaseDirectory E:\dev\game-manager\benchmarks\data\m0.2-2026-10-25-01 `
+  -ArtworkDirectory E:\dev\game-manager\benchmarks\data `
+  -ResultsDirectory E:\dev\game-manager\benchmarks\results\m0.7a-new-run `
+  -Sizes @(15000,25000) -Cases mixed2 -Iterations 5 `
+  -TraceSort -SortRepetitions 2 `
+  -BenchmarkExecutable E:\dev\game-manager\benchmarks\results\m0.7a-title-artifact\game-manager.exe
+
+node benchmarks/summarize-layout.mjs benchmarks/results/m0.7a-new-run
+node --test benchmarks/layout.test.mjs
+```
+
+`-BenchmarkExecutable` selects an explicitly retained native test artifact; the runner records its SHA-256/configuration in `environment.json`. Alternate baseline/candidate order across fresh processes with new output directories. `-ClosedDiagnostics` hides diagnostics; `-Cases mixed0` disables thumbnail workers while retaining the same mixed job and procedural resize. Omit `-TraceSort` for matched untraced controls. Do not run tests/builds concurrently with collection. Source databases remain hash-checked; writable roots/profiles/artwork copies remain isolated and ignored.
+
+`-LayoutVariants 'baseline,blockMain,gridStart,minHeight,fixedControls,blockControls,stableScrollbar,fixedPanel'` selects temporary CDP stylesheet experiments. Additional focused variants are `noLegibility`, `explicitCjk` (Yu Gothic UI), `explicitResolved` (the observed Noto Sans JP face), `warmLatin` and `warmCjk`. Warmups force a hidden test span's layout and record its cost/font separately; they are not shipped startup work. Experimental styles do not relax the production CSP. Multi-trial traces have `.sort-REPETITION-VARIANT.trace.json` suffixes; warm probes have separate `.warm-REPETITION-VARIANT.trace.json` files. Defaults retain the single original `.trace.json` filename.
+
+The independent **deep-first exploratory control** uses the same loopback transport but visits End before each transition:
+
+```powershell
+./benchmarks/layout.ps1 `
+  -ResultsDirectory E:\dev\game-manager\benchmarks\results\m0.7a-deep-control `
+  -Executables @('E:\dev\game-manager\benchmarks\results\m0.7a-title-artifact\game-manager.exe') `
+  -Repetitions 3
+```
+
+It accepts `-Sizes`, `-Variants`, `-ClosedDiagnostics`, `-NoArtwork` and `-Untraced`; fixes the emulated viewport at 1120×760/DPR 1; checks row IDs/heights/placeholders/reset/focus/End and records subsequent scroll frames separately. It is useful for order/geometry controls, not cold-path proof. Its focused traces use a 32-MiB stop-when-full buffer and 64-MiB stream cap. The background driver's original 16-MiB ring/64-MiB cap is retained; use focused capture and inspect start marks rather than assuming a whole-run ring retained every phase.
+
+Per-trial frame arrays avoid slicing an already-full global ring. The summarizer selects the marked renderer thread, keeps Layout wall/thread CPU separate and does not add nested JavaScript spans to Layout. Missing CPU data stays unavailable. Frame distributions include automation/idle time; commit, rAF, long tasks and paint/presentation are different measures. Final process-memory points are outside frame capture. Native traces, not unit timing thresholds, establish performance evidence.
+
+All three PowerShell runners now share `process-memory.ps1`: process creation times validate ancestry and protect against counting older orphan processes after PID reuse. Reports retain per-PID identities, creation times and private bytes. Run `./benchmarks/process-memory.test.ps1` for deterministic ancestry/missing-root checks and live serialization verification. Older aggregate-only points cannot be retroactively corrected; M0.7A retains an unexplained 718-MiB historical control point and a separate corrected-sampler repeat. Summed working sets can double-count shared pages, and point samples do not establish memory bounds.

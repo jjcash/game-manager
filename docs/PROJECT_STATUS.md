@@ -1,10 +1,10 @@
 # Project Status
 
-Last verification: 2026-10-26. See [M0.1 evidence](development/M0.1_VERIFICATION.md), [M0.1.1 CI verification](development/M0.1.1_CI_VERIFICATION.md), [M0.2 database evidence](development/M0.2_VERIFICATION.md), [M0.3 frontend evidence](development/M0.3_VERIFICATION.md), [M0.4 search/filter/sort verification](development/M0.4_VERIFICATION.md), [M0.5 artwork verification](development/M0.5_VERIFICATION.md), and [M0.6 background-load verification](development/M0.6_VERIFICATION.md).
+Last verification: 2026-10-27. See [M0.1 evidence](development/M0.1_VERIFICATION.md), [M0.1.1 CI verification](development/M0.1.1_CI_VERIFICATION.md), [M0.2 database evidence](development/M0.2_VERIFICATION.md), [M0.3 frontend evidence](development/M0.3_VERIFICATION.md), [M0.4 search/filter/sort verification](development/M0.4_VERIFICATION.md), [M0.5 artwork verification](development/M0.5_VERIFICATION.md), [M0.6 background-load verification](development/M0.6_VERIFICATION.md), and [M0.7A renderer verification](development/M0.7A_VERIFICATION.md).
 
 ## Actual state
 
-**M0.1 through M0.6 are complete within their verified synthetic scope.** The Rust/SQLite-backed virtualized Details View supports search/filter/sort, bounded synthetic thumbnails and feature-gated background jobs with progress/cancellation. M0.6 measured 500/12,320/15,000/25,000 games under CPU, hashing, writes, zero/one/two thumbnail workers and combined load, plus policy repeats, memory cycles, renderer traces and production isolation. M0 remains incomplete: provisional latency budgets are not generally met; HDD/lower-memory, controlled process startup and longer-session validation remain open. The 235-ms frame outlier and precise cause of expensive renderer Layout remain unresolved. M0.7 has not started.
+**M0.1 through M0.6 and M0.7A are complete within their verified synthetic scope.** The Rust/SQLite-backed virtualized Details View supports search/filter/sort, bounded synthetic thumbnails and feature-gated background jobs with progress/cancellation. M0.7A identifies first-use Japanese font work as a major contributor to the reproduced sort Layout stall and scopes an optional explicit fallback to game titles. Repeated 15,000/25,000 native comparisons reduce the measured largest Layout events while preserving bounds and behavior. M0 remains incomplete: provisional latency budgets are not generally met; some commit/script/scroll observations remain worse, the historical 235-ms task is unexplained, and HDD/lower-memory, controlled process startup and longer-session validation remain open. M0.7B/M0.7C have not started.
 
 Historical prototype checkmarks were accidental and explicitly withdrawn by the user. They remain invalid; the progress below comes from the current implementation and checks. Specifications and ADRs retain their planning baseline; this file governs current completion claims.
 
@@ -18,7 +18,7 @@ Historical prototype checkmarks were accidental and explicitly withdrawn by the 
 | Software license                                         | GPL-3.0-or-later accepted; root LICENSE, manifest metadata and first-party SPDX notices added                        |
 | Desktop app and UI                                       | Dark Tauri shell and virtualized Details View with search/filter/sort/thumbnails; Mods/Settings remain placeholders             |
 | Frontend-backend communication                           | Original probes/page commands retained; typed criteria/count/window IPC and runtime validation verified              |
-| Development quality checks                               | Frozen install, TypeScript, lint, formatting, 36 frontend/44 Rust tests and production frontend/native builds passed |
+| Development quality checks                               | Frozen install, TypeScript, lint/format, 38 frontend/44 feature Rust (28 default), measurement tests and frontend/native builds passed |
 | SQLite database/migrations                               | M0.2 complete: SQLx/SQLite, versioned migration, purpose separation, WAL/FK bounded pool, status/count/page services |
 | Details View/grid and artwork pipeline                   | M0.5 compact synthetic thumbnails, bounded jobs/queue/caches verified; cover grid/providers not implemented                        |
 | M0 prototype and benchmarks                              | Shell/SQLite/Details/artwork/synthetic-load slices complete; broader M0 gate and stress limitations remain open               |
@@ -101,9 +101,17 @@ Known failures remain explicit. Installed metadata/window p95 reached 157.2 ms i
 
 Focused profiles attribute reproduced 53?74 ms tasks mainly to full-document Layout; hiding diagnostics did not remove them. The specific layout/CSS cause and an unprofiled 235-ms write-load task remain unknown. Late 20-cycle process-private points fluctuate around 338?364 MiB, without proving a hard bound or leak-free long session. No SQL/index/FTS/count-cache change was made. The broader M0 performance/hardware gate remains open.
 
+## M0.7A renderer profiling and evidence
+
+Complete within the renderer investigation scope; see [M0.7A verification](development/M0.7A_VERIFICATION.md). Deterministic glyph/DOM/CSS controls isolate the first-use Japanese font path; a prior visit to title-sorted End warms it and masks reproduction. Optional Noto Sans JP is named only for game titles, preserving the observed title face and existing Cambria Math placeholder/Segoe interface fonts. No font asset, dependency, SQL/index/migration or artwork-default change is included. The earlier global font candidate was rejected and retained as experimental evidence.
+
+Three alternating fresh-process comparisons per artifact/size reduce median largest Layout from 58.822 to 31.838 ms at 15,000 and 78.020 to 20.271 ms at 25,000. The final 24-condition traced/control/untraced matrix retains 480 metadata and 480 page probes; none of the 12 candidate first-use conditions records a long task. This is not a rare-frame guarantee: pooled frame p99 and some 15,000 commit/script/later-scroll observations are higher. Native browsing and 36 query scenarios retain 26 rows/six pages/one request. Actual 1120×760, 900×650 and 760×560 resizing, selection/focus/placeholder geometry, emulated DPR 1.25, all local quality checks and final normal-build isolation pass.
+
+The 235-ms historical task, an existing 15-pixel header/body offset, existing grid-focus contrast and a 718-MiB legacy aggregate memory point remain documented. Process sampling now validates creation-time ancestry and stores per-PID records; the old aggregate cannot be retrospectively attributed or dismissed. Physical display scaling, other font configurations, HDD/lower-memory and long-session evidence remain open. No real game/personal data, commit or push was used.
+
 ## Recommended next separately authorized task
 
-Proposed M0.7: isolate the expensive sort-transition document Layout, repeat foreground latency/fairness experiments, and separately scope count-query optimization before changing SQL/indexes/FTS/caches. Extend process-memory, HDD and lower-memory evidence and retain the immutable synthetic baselines. Keep 15,000 as the release target and 25,000 as stress. No real imports or M0.7 work starts automatically; no new GitHub CI run or branch-protection enforcement is claimed.
+Separately scope M0.7B foreground query/latency investigation before changing SQL/indexes/FTS/caches. Preserve first-use/warm font controls and the unresolved renderer findings; retain 15,000 as release scale and 25,000 as stress. M0.7B/M0.7C, integrations and wider hardware/startup/memory work do not start automatically. No new GitHub CI run or branch-protection enforcement is claimed.
 
 ## Genuine remaining work
 

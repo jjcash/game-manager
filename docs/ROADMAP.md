@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: **M0 is in progress: M0.1 through M0.6 complete within their verified scope; M0.1.1 CI awaits documented GitHub verification.** M0.7 and M1-M5 have not started. See [PROJECT_STATUS](PROJECT_STATUS.md) for measured limitations; the wider performance gate remains open.
+Status: **M0 is in progress: M0.1 through M0.6 and M0.7A complete within their verified scope; M0.1.1 CI awaits documented GitHub verification.** M0.7B/M0.7C and M1-M5 have not started. See [PROJECT_STATUS](PROJECT_STATUS.md) for measured limitations; the wider performance gate remains open.
 
 ## M0 — Performance-validation prototype
 
@@ -83,7 +83,22 @@ Complete within the synthetic prototype scope; see [M0.6 verification](developme
 
 All applicable local quality checks, 36 frontend/44 Rust tests (28 default), production/benchmark builds and normal-launch isolation passed. Forty primary conditions at 500/12,320/15,000/25,000 retain 3,200 metadata and 3,200 page samples, with worker/backoff repeats, matched no-thumbnail mixed work, existing native regression drivers, paired M0.5/M0.6 artifacts, memory cycles, renderer traces and graceful shutdown/restart. Cancellation/failure preserves exact valid partial counts, not false completion.
 
-The 150-ms filter/sort goal is not generally met, including some 15,000 cases; stress installed/not-installed/combined costs remain open. One worker reduces some query tails at slower artwork readiness; default stays two pending broader evidence. Reproduced long tasks are predominantly renderer Layout in focused traces, but the CSS trigger and unprofiled 235-ms outlier remain unknown. Memory is measured, not proven strictly bounded. HDD/lower-memory and long-session M0 gates remain open. M0.7 is proposed for focused latency/layout/fairness validation only and has not started. No real importer, commit or push is included.
+The 150-ms filter/sort goal is not generally met, including some 15,000 cases; stress installed/not-installed/combined costs remain open. One worker reduces some query tails at slower artwork readiness; default stays two pending broader evidence. Reproduced long tasks are predominantly renderer Layout in focused traces, but the CSS trigger and unprofiled 235-ms outlier remain unknown. Memory is measured, not proven strictly bounded. HDD/lower-memory and long-session M0 gates remain open. M0.7A was subsequently authorized and is recorded below; M0.7B/M0.7C have not started. No real importer, commit or push is included.
+
+### M0.7A — Renderer layout profiling and optimization
+
+Complete within this investigation scope; see [M0.7A verification](development/M0.7A_VERIFICATION.md).
+
+- [x] Reproduce the installed-complement → all/release-descending transition with deterministic 15,000/25,000 fixtures and inspect renderer Layout wall/CPU/object/frame evidence.
+- [x] Control CSS/DOM/diagnostics/artwork/order effects; isolate first-use Japanese font work and retain failed reproduction attempts.
+- [x] Scope an optional explicit local fallback to titles; reject the broader global-font candidate and preserve placeholder/interface fonts, appearance and virtualization behavior.
+- [x] Repeat alternating native artifact comparisons, warm trials, hidden diagnostics/no-artwork controls and matched untraced runs; record mixed commit/script/scroll findings without claiming every latency target passed.
+- [x] Verify regression/accessibility semantics, real narrow-window resizing, existing native browsing/query scenarios, local checks/builds and normal-production isolation.
+- [x] Preserve historical reports/outliers, correct process-memory ancestry sampling and document remaining font/frame/memory/layout limitations.
+
+Median largest Layout is 58.822 → 31.838 ms at 15,000 and 78.020 → 20.271 ms at 25,000. No long task was observed in the 12 final-candidate first-use conditions, while some frame p99, script/commit and later-scroll measurements remain higher. Bounds stay 26 mounted rows/six pages/one active library request. The 235-ms historical task, legacy 718-MiB aggregate point, existing header offset/focus contrast and broader M0 hardware/startup/long-session gate remain open. No SQL/index/migration, worker-default, integration, mod, cloud or mobile work is included.
+
+M0.7B query/latency work and M0.7C require separate authorization; neither starts automatically.
 
 ## M1 — Library foundation
 

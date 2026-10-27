@@ -12,12 +12,16 @@ param(
     [switch]$TraceSort,
     [switch]$ClosedDiagnostics,
     [switch]$ShutdownJob,
-    [switch]$RestartCheck
+    [switch]$RestartCheck,
+    [string]$BenchmarkExecutable,
+    [string]$LayoutVariants = 'baseline',
+    [ValidateRange(1,20)][int]$SortRepetitions = 1
 )
 $ErrorActionPreference='Stop'
 if($Trace -and $TraceSort){throw 'Select one tracing mode.'}
 $repo=Split-Path $PSScriptRoot -Parent
 $exe=Join-Path $repo 'apps/desktop/src-tauri/target/release/game-manager.exe'
+if($BenchmarkExecutable){$exe=(Resolve-Path -LiteralPath $BenchmarkExecutable).Path}
 $generator=Join-Path $repo 'apps/desktop/src-tauri/target/release/job-fixtures.exe'
 if (Get-Process game-manager -ErrorAction SilentlyContinue) {throw 'Close Game Manager first.'}
 if (Get-NetTCPConnection -LocalPort 9223 -State Listen -ErrorAction SilentlyContinue) {throw 'Debug port already occupied.'}
@@ -26,15 +30,11 @@ $artRoot=(Resolve-Path -LiteralPath $ArtworkDirectory).Path
 $results=[IO.Path]::GetFullPath($ResultsDirectory)
 if (Test-Path -LiteralPath $results) {throw 'Choose a NEW results directory.'}
 New-Item -ItemType Directory -Path $results | Out-Null
+@{executable=$exe;sha256=(Get-FileHash -LiteralPath $exe).Hash;trace=[bool]($Trace -or $TraceSort);sortRepetitions=$SortRepetitions;layoutVariants=$LayoutVariants;diagnosticsOpen=(!$ClosedDiagnostics);sizes=$Sizes;cases=$Cases;iterations=$Iterations} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $results 'environment.json') -Encoding utf8
 $names=@('GAME_MANAGER_BENCHMARK_DB','GAME_MANAGER_BENCHMARK_ARTWORK','GAME_MANAGER_SYNTHETIC_ROOT','GAME_MANAGER_ARTWORK_WORKERS','GAME_MANAGER_BACKGROUND_POLICY','GAME_MANAGER_DATA_DIR','WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS','WEBVIEW2_USER_DATA_FOLDER')
 $saved=@{}
 foreach($name in $names){$saved[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
-function Get-AppMemory([int]$RootId){
-    $all=Get-CimInstance Win32_Process;$ids=@($RootId)
-    do{$children=@($all | Where-Object {$_.ParentProcessId -in $ids -and $_.ProcessId -notin $ids} | ForEach-Object {[int]$_.ProcessId});$ids+=$children}while($children.Count -gt 0)
-    $live=@(Get-Process -Id $ids -ErrorAction SilentlyContinue)
-    return @{processes=$live.Count;privateBytes=($live|Measure-Object PrivateMemorySize64 -Sum).Sum;nativePrivateBytes=(Get-Process -Id $RootId).PrivateMemorySize64}
-}
+. "$PSScriptRoot/process-memory.ps1"
 try{
     foreach($size in $Sizes){
         if($size -notin @(500,12320,15000,25000)){throw 'Unsupported size'}
@@ -70,7 +70,7 @@ try{
                 $appProcess=Start-Process -FilePath $exe -WindowStyle Hidden -PassThru -RedirectStandardError "$output.app.stderr.txt"
                 $null=$appProcess.Handle
                 try{
-                    $nodeArguments=@(('"'+(Join-Path $PSScriptRoot 'frontend-background.mjs')+'"'),'http://127.0.0.1:9223',('"'+$output+'"'),"--case=$case","--iterations=$Iterations","--cycles=$Cycles")
+                    $nodeArguments=@(('"'+(Join-Path $PSScriptRoot 'frontend-background.mjs')+'"'),'http://127.0.0.1:9223',('"'+$output+'"'),"--case=$case","--iterations=$Iterations","--cycles=$Cycles","--layout-variants=$LayoutVariants","--sort-repetitions=$SortRepetitions")
                     if($Trace){$nodeArguments+='--trace'}
                     if($TraceSort){$nodeArguments+='--trace-sort'}
                     if($ClosedDiagnostics){$nodeArguments+='--closed-diagnostics'}

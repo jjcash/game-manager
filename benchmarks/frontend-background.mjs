@@ -8,6 +8,32 @@ const option = (name, fallback) =>
 const mode = option("case", "idle"),
   iterations = Number(option("iterations", 20)),
   cycles = Number(option("cycles", 1));
+const layoutExperiments = {
+  baseline: "",
+  blockMain: ".main-content { display: block; }",
+  gridStart: ".app-shell { align-items: start; }",
+  minHeight: ".main-content, .library-panel { min-height: 0; }",
+  fixedControls: ".library-controls select { width: 190px; }",
+  blockControls: ".library-controls { display: block; }",
+  stableScrollbar:
+    "html { overflow-y: scroll; } .library-scroll { overflow-y: scroll; }",
+  fixedPanel: ".library-panel { flex-shrink: 0; }",
+  explicitCjk:
+    '.game-title { font-family: "Segoe UI Variable", "Segoe UI", "Yu Gothic UI", system-ui, sans-serif; }',
+  explicitResolved:
+    '.game-title { font-family: "Segoe UI Variable", "Segoe UI", "Noto Sans JP", system-ui, sans-serif; }',
+  noLegibility: ".game-title { text-rendering: auto; }",
+  warmLatin: "",
+  warmCjk: "",
+};
+const layoutVariants = option("layout-variants", "baseline").split(",");
+layoutVariants.forEach((v) => assert(Object.hasOwn(layoutExperiments, v), v));
+const sortRepetitions = Number(option("sort-repetitions", 1));
+assert(
+  Number.isInteger(sortRepetitions) &&
+    sortRepetitions >= 1 &&
+    sortRepetitions <= 20,
+);
 const { evaluate, until, snapshot, key, command, socket, sleep, onEvent } =
   await connectWebview(endpoint);
 const invoke = (name, args = {}) =>
@@ -114,9 +140,10 @@ async function startTrace() {
   });
   tracing = true;
 }
-async function finishTrace() {
+async function finishTrace(suffix = "") {
   await command("Tracing.end");
   const completed = await traceReady;
+  assert.notEqual(completed.dataLossOccurred, true, "Renderer trace lost data");
   traceRemove();
   let bytes = 0;
   for (;;) {
@@ -133,7 +160,7 @@ async function finishTrace() {
       report.traceTruncated = true;
       break;
     }
-    await appendFile(`${output}.trace.json`, data);
+    await appendFile(`${output}${suffix}.trace.json`, data);
     if (chunk.eof) break;
   }
   await command("IO.close", { handle: completed.stream });
@@ -185,7 +212,7 @@ try {
     report.beforeShutdown = await invoke("synthetic_list", { detailed: true });
   } else {
     await evaluate(
-      `(()=>{const m=window.__gmBackground={frames:[],spikes:[],longTasks:[],actions:[],inputs:[],phases:{},phase:"setup",over50:0,maxRows:0,running:true};let previous=0;const tick=now=>{if(!m.running)return;if(previous&&document.visibilityState==='visible'){const d=now-previous;const p=m.phases[m.phase]??(m.phases[m.phase]={samples:[],total:0,over50:0,max:0});p.samples.push(d);if(p.samples.length>1024)p.samples.shift();p.total++;p.max=Math.max(p.max,d);if(d>50)p.over50++;m.frames.push(d);if(m.frames.length>4096)m.frames.shift();if(d>50){m.over50++;m.spikes.push({start:previous,duration:d});if(m.spikes.length>128)m.spikes.shift();}}previous=now;m.maxRows=Math.max(m.maxRows,document.querySelectorAll('.game-row').length);m.raf=requestAnimationFrame(tick)};m.raf=requestAnimationFrame(tick);m.input=e=>{if(!['INPUT','SELECT'].includes(e.target.tagName))return;const at=performance.now();requestAnimationFrame(now=>{m.inputs.push({at,duration:now-at,type:e.type,label:e.target.getAttribute('aria-label')});if(m.inputs.length>128)m.inputs.shift()})};document.addEventListener('input',m.input,true);document.addEventListener('change',m.input,true);try{m.observer=new PerformanceObserver(list=>{for(const e of list.getEntries()){m.longTasks.push({start:e.startTime,duration:e.duration});if(m.longTasks.length>128)m.longTasks.shift()}});m.observer.observe({type:'longtask',buffered:false});m.longTasksSupported=true}catch{m.longTasksSupported=false}})()`,
+      `(()=>{const m=window.__gmBackground={frames:[],spikes:[],longTasks:[],actions:[],inputs:[],phases:{},phase:"setup",over50:0,maxRows:0,running:true};let previous=0;const tick=now=>{if(!m.running)return;if(previous&&document.visibilityState==='visible'){const d=now-previous;const p=m.phases[m.phase]??(m.phases[m.phase]={samples:[],total:0,over50:0,max:0});p.samples.push(d);if(p.samples.length>1024)p.samples.shift();p.total++;p.max=Math.max(p.max,d);if(d>50)p.over50++;if(m.sortCapture){m.sortCapture.frames.push(d);if(m.sortCapture.frames.length>1024)m.sortCapture.frames.shift();}m.frames.push(d);if(m.frames.length>4096)m.frames.shift();if(d>50){m.over50++;m.spikes.push({start:previous,duration:d});if(m.spikes.length>128)m.spikes.shift();}}previous=now;m.maxRows=Math.max(m.maxRows,document.querySelectorAll('.game-row').length);m.raf=requestAnimationFrame(tick)};m.raf=requestAnimationFrame(tick);m.input=e=>{if(!['INPUT','SELECT'].includes(e.target.tagName))return;const at=performance.now();requestAnimationFrame(now=>{m.inputs.push({at,duration:now-at,type:e.type,label:e.target.getAttribute('aria-label')});if(m.inputs.length>128)m.inputs.shift()})};document.addEventListener('input',m.input,true);document.addEventListener('change',m.input,true);try{m.observer=new PerformanceObserver(list=>{for(const e of list.getEntries()){if(m.sortCapture){m.sortCapture.longTasks.push({start:e.startTime,duration:e.duration});if(m.sortCapture.longTasks.length>128)m.sortCapture.longTasks.shift();}m.longTasks.push({start:e.startTime,duration:e.duration});if(m.longTasks.length>128)m.longTasks.shift()}});m.observer.observe({type:'longtask',buffered:false});m.longTasksSupported=true}catch{m.longTasksSupported=false}})()`,
     );
     const kind = {
       cpu: "cpu",
@@ -281,11 +308,133 @@ try {
     await record("installed", { ...base, installed: "installed" });
     await input("Installation filter", "notInstalled");
     await record("notInstalled", { ...base, installed: "notInstalled" });
-    if (flags.includes("--trace-sort")) await startTrace();
-    await input("Installation filter", "all");
-    await input("Sort games", "releaseDate:desc");
-    await record("sort", { ...base, sort: "releaseDate", direction: "desc" });
-    if (flags.includes("--trace-sort")) await finishTrace();
+    report.layoutTrials = [];
+    await command("Performance.enable");
+    let experimentSheet;
+    if (layoutVariants.length > 1 || layoutVariants[0] !== "baseline") {
+      await command("DOM.enable");
+      await command("CSS.enable");
+      const tree = await command("Page.getFrameTree");
+      experimentSheet = (
+        await command("CSS.createStyleSheet", {
+          frameId: tree.frameTree.frame.id,
+        })
+      ).styleSheetId;
+    }
+    const sortExpected = await invoke("library_query", {
+      request: {
+        offset: 0,
+        limit: 100,
+        criteria: { ...base, sort: "releaseDate", direction: "desc" },
+      },
+    });
+    for (let repetition = 0; repetition < sortRepetitions; repetition++) {
+      for (const variant of repetition % 2
+        ? [...layoutVariants].reverse()
+        : layoutVariants) {
+        if (experimentSheet)
+          await command("CSS.setStyleSheetText", {
+            styleSheetId: experimentSheet,
+            text: layoutExperiments[variant],
+          });
+        if (report.layoutTrials.length) {
+          await input("Sort games", "title:asc");
+          await input(
+            "Installation filter",
+            repetition % 2 ? "installed" : "notInstalled",
+          );
+          await record("sortSetup", {
+            ...base,
+            installed: repetition % 2 ? "installed" : "notInstalled",
+          });
+        }
+        let fontWarmup;
+        if (variant === "warmLatin" || variant === "warmCjk") {
+          if (flags.includes("--trace-sort")) await startTrace();
+          fontWarmup = await evaluate(
+            `(()=>{const e=document.createElement('span');e.id='gm-font-probe';e.className='game-title';e.style.position='fixed';e.style.visibility='hidden';e.textContent=${JSON.stringify(variant === "warmCjk" ? "\u661f\u306e" : "Latin title")};document.body.append(e);const start=performance.now();const width=e.offsetWidth;return {layoutMs:performance.now()-start,width}})()`,
+          );
+          const documentNode = await command("DOM.getDocument");
+          const probe = await command("DOM.querySelector", {
+            nodeId: documentNode.root.nodeId,
+            selector: "#gm-font-probe",
+          });
+          await command("CSS.enable");
+          fontWarmup.fonts = await command("CSS.getPlatformFontsForNode", {
+            nodeId: probe.nodeId,
+          });
+          await evaluate(`document.getElementById('gm-font-probe').remove()`);
+          if (flags.includes("--trace-sort"))
+            await finishTrace(`.warm-${repetition}-${variant}`);
+        }
+        if (flags.includes("--trace-sort")) await startTrace();
+        const performanceBefore = await command("Performance.getMetrics");
+        await evaluate(
+          `(()=>{const m=window.__gmBackground;m.sortCapture={frames:[],longTasks:[]};performance.mark('gm:sortTrial:${repetition}:${variant}');})()`,
+        );
+        await input("Installation filter", "all");
+        await input("Sort games", "releaseDate:desc");
+        await record("sort", {
+          ...base,
+          sort: "releaseDate",
+          direction: "desc",
+        });
+        const dom = await evaluate(
+          `(()=>{const m=window.__gmBackground;return {frames:[...m.sortCapture.frames],longTasks:[...m.sortCapture.longTasks],scrollTop:document.querySelector('.library-scroll').scrollTop,selected:document.querySelectorAll('.game-row[aria-selected="true"]').length,rows:Array.from(document.querySelectorAll('.game-row')).map(e=>({id:e.id,index:Number(e.getAttribute('aria-rowindex'))-2,height:e.getBoundingClientRect().height,top:e.getBoundingClientRect().top,thumbnail:[e.querySelector('.thumbnail').getBoundingClientRect().width,e.querySelector('.thumbnail').getBoundingClientRect().height]})),css:document.getElementById('gm-layout-experiment')?.sheet?.cssRules.length??0}})()`,
+        );
+        assert.equal(dom.scrollTop, 0);
+        assert.equal(dom.selected, 0);
+        for (const row of dom.rows) {
+          assert.equal(row.id, `game-${sortExpected.items[row.index].id}`);
+          assert.equal(row.height, 38);
+          assert.deepEqual(row.thumbnail, [48, 27]);
+        }
+        if (experimentSheet)
+          assert.equal(
+            (
+              await command("CSS.getStyleSheetText", {
+                styleSheetId: experimentSheet,
+              })
+            ).text,
+            layoutExperiments[variant],
+          );
+        const performanceAfter = await command("Performance.getMetrics");
+        const performanceDelta = Object.fromEntries(
+          performanceAfter.metrics.map(({ name, value }) => [
+            name,
+            value -
+              (performanceBefore.metrics.find((m) => m.name === name)?.value ??
+                0),
+          ]),
+        );
+        const trial = {
+          repetition,
+          variant,
+          dom,
+          fontWarmup,
+          performanceDelta,
+          metrics: report.ui.at(-1).metrics,
+        };
+        report.layoutTrials.push(trial);
+        if (flags.includes("--trace-sort"))
+          await finishTrace(
+            sortRepetitions === 1 && layoutVariants.length === 1
+              ? ""
+              : `.sort-${repetition}-${variant}`,
+          );
+        await command("DOM.enable");
+        await command("CSS.enable");
+        const documentNode = await command("DOM.getDocument");
+        const cjk = await command("DOM.querySelector", {
+          nodeId: documentNode.root.nodeId,
+          selector: '.game-title[title^="\u661f\u306e"]',
+        });
+        if (cjk.nodeId)
+          trial.cjkFonts = await command("CSS.getPlatformFontsForNode", {
+            nodeId: cjk.nodeId,
+          });
+      }
+    }
     await marker("ui:rapidScroll");
     await evaluate(
       `(async()=>{const e=document.querySelector('.library-scroll');for(let i=0;i<60;i++){e.scrollTop=((i*7919)%${total})*38;await new Promise(requestAnimationFrame)}})()`,

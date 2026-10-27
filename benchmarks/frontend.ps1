@@ -33,16 +33,7 @@ $savedArtwork = $env:GAME_MANAGER_BENCHMARK_ARTWORK
 $savedJobs = $env:GAME_MANAGER_SYNTHETIC_ROOT
 $savedWorkers = $env:GAME_MANAGER_ARTWORK_WORKERS
 $savedPolicy = $env:GAME_MANAGER_BACKGROUND_POLICY
-function Get-AppMemory([int]$RootId) {
-    $processes = Get-CimInstance Win32_Process
-    $ids = @($RootId)
-    do {
-        $children = @($processes | Where-Object { $_.ParentProcessId -in $ids -and $_.ProcessId -notin $ids } | ForEach-Object { [int]$_.ProcessId })
-        $ids += $children
-    } while ($children.Count -gt 0)
-    $live = @(Get-Process -Id $ids -ErrorAction SilentlyContinue)
-    return @{ processes = $live.Count; privateBytes = ($live | Measure-Object PrivateMemorySize64 -Sum).Sum; workingSetBytes = ($live | Measure-Object WorkingSet64 -Sum).Sum; nativePrivateBytes = (Get-Process -Id $RootId).PrivateMemorySize64 }
-}
+. "$PSScriptRoot/process-memory.ps1"
 try {
     $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9223 --remote-debugging-address=127.0.0.1'
     $env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $resultsRoot 'webview-profile'
