@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: **M0 is in progress: M0.1 through M0.6 and M0.7A/M0.7B/M0.7C complete within their verified scope; M0.1.1 CI awaits documented GitHub verification.** M1-M5 have not started; the M0.7C investigation does not close the wider M0 gate. See [PROJECT_STATUS](PROJECT_STATUS.md) for measured limitations; the wider performance gate remains open.
+Status: **M0 is in progress: M0.1 through M0.6 and M0.7A/M0.7B/M0.7C/M0.7D complete within their verified scope; M0.1.1 CI awaits documented GitHub verification.** M1-M5 have not started; the M0.7D investigation does not close the wider M0 gate. See [PROJECT_STATUS](PROJECT_STATUS.md) for measured limitations; the wider performance gate remains open.
 
 ## M0 — Performance-validation prototype
 
@@ -129,6 +129,19 @@ Complete within the investigation scope; see [M0.7C verification](development/M0
 - [x] Consolidate pass/fail/unverified budgets, limitations, historical outliers and remaining-M0 recommendations without claiming a passed wider gate.
 
 Integrated page p95 exceeds 50 ms at release/stress, some stress command pairs exceed 150 ms, and release whole-app warm startup misses one second. Long mixed captures show finite late stabilization and idle recovery, without proving leak freedom. High membership/copy fanout exposes additional page costs. No SQL/index/schema/cache/default/admission change is adopted. The 235-ms task, 718-MiB historical point, physical lower-RAM/scaling, OS-cold and actual displayed-frame evidence remain open; the 15-pixel header offset/focus contrast remain separate UI follow-ups. Any next task needs separate authorization within remaining M0; M1 is not started. No commit or push.
+
+### M0.7D - Whole-process startup profiling and optimization
+
+Complete as an investigation; see [M0.7D verification](development/M0.7D_VERIFICATION.md). **The overall M0 performance gate remains open.**
+
+- [x] Preserve the merged M0.7C baseline, retained artifacts, original reports and all seed-42 fixture hashes.
+- [x] Add bounded monotonic/UTC native phase marks, frontend/navigation boundaries, separate window-construction profiling and explicit legacy/buffered/off observer controls.
+- [x] Run 156 ordinary timing launches across 500/12,320/15,000/25,000 and zero/two artwork workers, with release-scale reversed-order repetitions; retain faster/worse cohorts and fresh/reused profiles.
+- [x] Measure the dominant synchronous window/WebView aggregate separately from small application setup and database phases; record unavailable privileged system attribution.
+- [x] Retain production initialization after rejecting unproven optimizations; preserve actual loaded-row usability and initialization errors/recovery.
+- [x] Pass automated checks, both native builds, isolated normal launches and representative release/stress browsing/query/font/layout/artwork/job/native-resize regressions.
+
+Final 15,000-game native-timing-off medians remain **1,034.6 / 1,128.6 ms** with zero/two workers. Window construction profiles are about **717-917 ms**, application setup **3-4 ms**, database tasks **21-39 ms** in small reused-profile controls. No WebView2-internal, AV, DLL or scheduling cause is fabricated; WPR cannot start in the current non-elevated session. No production optimization or uniform startup improvement is claimed, and worse artifact-associated differences remain unresolved. Page/load tails and prior M0 limitations remain open. M0.7E requires separate authorization; it is not started. No commit or push.
 
 ## M1 — Library foundation
 

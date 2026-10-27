@@ -22,11 +22,14 @@ param(
     [ValidateRange(1,10)][int]$Launches = 1,
     [string]$FixtureDirectory,
     [switch]$ReadOnlyLibrary,
+    [switch]$ProfileStartupWindow,
+    [ValidateSet('Legacy','Buffered','Off')][string]$StartupTimingMode = 'Legacy',
     [switch]$CaptureIpc
 )
 $ErrorActionPreference='Stop'
 if($Trace -and $TraceSort){throw 'Select one tracing mode.'}
 if($ReadOnlyLibrary -and $IntegratedScenario -ne 'startup'){throw 'ReadOnlyLibrary is a startup control only.'}
+if($ProfileStartupWindow -and $IntegratedScenario -ne 'startup'){throw 'ProfileStartupWindow requires startup.'}
 if($CaptureIpc -and !$IntegratedScenario){throw 'CaptureIpc requires an integrated scenario.'}
 if($IntegratedScenario -and ($Trace -or $TraceSort -or $RestartCheck -or $ShutdownJob)){throw 'Use the original driver for trace/shutdown scenarios.'}
 $repo=Split-Path $PSScriptRoot -Parent
@@ -46,8 +49,8 @@ if($FixtureDirectory){
     if(Test-Path -LiteralPath $fixtureBase){throw 'Choose a NEW fixture directory.'}
     New-Item -ItemType Directory -Path $fixtureBase | Out-Null
 }
-@{executable=$exe;sha256=(Get-FileHash -LiteralPath $exe).Hash;fixtureBase=$fixtureBase;trace=[bool]($Trace -or $TraceSort);sortRepetitions=$SortRepetitions;layoutVariants=$LayoutVariants;diagnosticsOpen=(!$ClosedDiagnostics);sizes=$Sizes;cases=$Cases;iterations=$Iterations;integratedScenario=$IntegratedScenario;sustainedCycles=$SustainedCycles;recoverySeconds=$RecoverySeconds;launches=$Launches;sampleMemory=[bool]$SampleMemory} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $results 'environment.json') -Encoding utf8
-$names=@('GAME_MANAGER_BENCHMARK_DB','GAME_MANAGER_BENCHMARK_ARTWORK','GAME_MANAGER_SYNTHETIC_ROOT','GAME_MANAGER_ARTWORK_WORKERS','GAME_MANAGER_BACKGROUND_POLICY','GAME_MANAGER_DATA_DIR','WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS','WEBVIEW2_USER_DATA_FOLDER','GAME_MANAGER_STARTUP_TIMING')
+@{executable=$exe;sha256=(Get-FileHash -LiteralPath $exe).Hash;fixtureBase=$fixtureBase;trace=[bool]($Trace -or $TraceSort);sortRepetitions=$SortRepetitions;layoutVariants=$LayoutVariants;diagnosticsOpen=(!$ClosedDiagnostics);sizes=$Sizes;cases=$Cases;iterations=$Iterations;integratedScenario=$IntegratedScenario;sustainedCycles=$SustainedCycles;recoverySeconds=$RecoverySeconds;launches=$Launches;sampleMemory=[bool]$SampleMemory;profileStartupWindow=[bool]$ProfileStartupWindow;startupTimingMode=$StartupTimingMode} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $results 'environment.json') -Encoding utf8
+$names=@('GAME_MANAGER_BENCHMARK_DB','GAME_MANAGER_BENCHMARK_ARTWORK','GAME_MANAGER_SYNTHETIC_ROOT','GAME_MANAGER_ARTWORK_WORKERS','GAME_MANAGER_BACKGROUND_POLICY','GAME_MANAGER_DATA_DIR','WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS','WEBVIEW2_USER_DATA_FOLDER','GAME_MANAGER_STARTUP_TIMING','GAME_MANAGER_STARTUP_PROFILE_WINDOW')
 $saved=@{}
 foreach($name in $names){$saved[$name]=[Environment]::GetEnvironmentVariable($name,'Process')}
 . "$PSScriptRoot/process-memory.ps1"
@@ -55,6 +58,7 @@ if($IntegratedScenario -eq 'startup' -and !('GameManagerBenchmarkWindow' -as [ty
     Add-Type 'public static class GameManagerBenchmarkWindow { [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool IsWindowVisible(System.IntPtr h); }'
 }
 try{
+    $env:GAME_MANAGER_STARTUP_PROFILE_WINDOW=if($ProfileStartupWindow){'1'}else{$null}
     foreach($size in $Sizes){
         if($size -notin @(500,12320,15000,25000)){throw 'Unsupported size'}
         $canonical=Join-Path $dbRoot "synthetic-v1-seed-42-$size.sqlite3"
@@ -85,7 +89,7 @@ try{
             $env:GAME_MANAGER_BACKGROUND_POLICY=if($case -eq 'priority'){'foreground'}else{'unthrottled'}
             $env:GAME_MANAGER_DATA_DIR=Join-Path $fixtureBase 'application-fallback'
             $env:WEBVIEW2_USER_DATA_FOLDER=Join-Path $fixtureBase "profile-$size-$case"
-            $env:GAME_MANAGER_STARTUP_TIMING=if($IntegratedScenario -eq 'startup'){'1'}else{$null}
+            $env:GAME_MANAGER_STARTUP_TIMING=if($IntegratedScenario -ne 'startup' -or $StartupTimingMode -eq 'Off'){$null}elseif($StartupTimingMode -eq 'Buffered'){'buffered'}else{'1'}
             $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=9223 --remote-debugging-address=127.0.0.1'
             $restarts=if($RestartCheck){2}else{$Launches}
             for($restart=1;$restart -le $restarts;$restart++){
@@ -124,6 +128,8 @@ try{
                     ConvertTo-Json -InputObject $series.ToArray() -Depth 5 | Set-Content -LiteralPath "$output.memory-series.json"
                     if($node.ExitCode -ne 0){throw "Native background scenario failed: $output"}
                     Get-AppMemory $appProcess.Id | ConvertTo-Json | Set-Content -LiteralPath "$output.memory.json"
+                    $appProcess.Refresh()
+                    @{nativeCpuMs=$appProcess.TotalProcessorTime.TotalMilliseconds;nativeWorkingSetBytes=$appProcess.WorkingSet64;observedUtc=[DateTime]::UtcNow.ToString("o");boundary="after driver and final process-memory collection; not startup CPU or peak memory"} | ConvertTo-Json | Set-Content -LiteralPath "$output.resources.json"
                 }finally{
                     # Startup visibility probing can cache an early window
                     # handle. Refresh before asking the current main window to close.

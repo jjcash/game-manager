@@ -1,5 +1,32 @@
 # Synthetic performance benchmarks
 
+## M0.7D whole-process startup investigation
+
+See [M0.7D verification](../docs/development/M0.7D_VERIFICATION.md) for phase definitions, paired controls, failures and limitations. Retain the original M0.7C executable; use an optimized benchmark build for added native milestones. The ordinary configured-window path remains the low-overhead timing path:
+
+```powershell
+./benchmarks/background.ps1 -DatabaseDirectory $db -ArtworkDirectory $art `
+  -ResultsDirectory E:\dev\game-manager\benchmarks\results\startup-timing-new `
+  -BenchmarkExecutable $exe -Sizes @(15000,500,12320,25000) `
+  -Cases @('idle','art2') -Iterations 5 -IntegratedScenario startup `
+  -ReadOnlyLibrary -Launches 5 -RecoverySeconds 0
+node benchmarks/startup.mjs benchmarks/results/startup-timing-new |
+  Set-Content -Encoding utf8 benchmarks/results/startup-timing-new-summary.json
+```
+
+Define `$db`, `$art` and `$exe` as absolute reference database directory, synthetic artwork directory and retained executable path (as in the M0.7C example below). Always select a new results root. Record artifact/order/profile state; reverse before/after order across repeated cohorts. Launch one has a fresh profile, later launches reuse it; all retain OS caches, including preflight hashing. No OS-cold claim follows from profile freshness.
+
+For **separate profiling runs**, add `-ProfileStartupWindow`. Only a benchmark-feature binary honors `GAME_MANAGER_STARTUP_PROFILE_WINDOW`; it constructs the configured window explicitly at setup entry to bracket the synchronous call. Internal asset-setup order differs, so do not mix these samples with ordinary-path timing distributions or call them an optimization. Native marks include monotonic elapsed and UTC timestamps. Detailed marks are buffered until a post-startup stats request or normal exit (128 pending-event ceiling). `-StartupTimingMode Legacy` (default) retains M0.7C's two synchronous timestamp writes for matched historical comparisons; `Buffered` buffers those too on new binaries, and `Off` disables native marks on both old/new artifacts. Use matched `Off` controls to measure observer effects with the same process-to-real-row boundary. Do not compare old binaries' `Buffered` mode as if they supported deferred output. Stderr writes have nonzero overhead; profiling and legacy-log removal are not production startup optimizations. Timing-enabled metadata/page marks retain attempts. The summarizer uses the first request, joins the unchanged real-row metric to process creation, and retains raw marks, visibility bounds, memory points and per-stage distributions. Missing instrumentation remains null, not zero. Post-driver CPU/private memory are collection points, not startup CPU/peak estimates.
+
+```powershell
+./benchmarks/startup-errors.ps1 -BenchmarkExecutable $exe `
+  -DatabaseDirectory $db `
+  -ResultsDirectory E:\dev\game-manager\benchmarks\results\startup-errors-new
+node --test benchmarks/startup.test.mjs
+```
+
+Error probes use only newly owned temporary roots: empty application DB, absent/directory/corrupt/locked synthetic DB and blocked application data root. They verify structured errors, retry, preserved files and normal lifecycle. Mandatory migration, identity, WAL and foreign-key checks remain in place. Successful fixed-path restarts are covered by ordinary startup runs. Shell commit, navigation, row readiness, image readiness, window visibility and physical presentation remain separate. WPR/system traces require the corresponding Windows privilege; retain failed captures and do not alter security protections.
+
 ## M0.7C integrated validation
 
 See [M0.7C verification](../docs/development/M0.7C_VERIFICATION.md) for retained artifacts/hashes, complete results, failed observations and the overall M0 gate assessment. Existing M0.2–M0.7B procedures/evidence below remain unchanged. Build and finish checks before timed collection; run one native driver at a time, with no competing builds/tests. Always choose new result/fixture roots.

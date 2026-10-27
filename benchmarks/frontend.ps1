@@ -34,6 +34,7 @@ $savedJobs = $env:GAME_MANAGER_SYNTHETIC_ROOT
 $savedWorkers = $env:GAME_MANAGER_ARTWORK_WORKERS
 $savedPolicy = $env:GAME_MANAGER_BACKGROUND_POLICY
 $savedStartupTiming = $env:GAME_MANAGER_STARTUP_TIMING
+$savedStartupProfile = $env:GAME_MANAGER_STARTUP_PROFILE_WINDOW
 . "$PSScriptRoot/process-memory.ps1"
 try {
     $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9223 --remote-debugging-address=127.0.0.1'
@@ -45,6 +46,7 @@ try {
     $env:GAME_MANAGER_ARTWORK_WORKERS = if ($NormalSmoke) { 'invalid' } else { $null }
     $env:GAME_MANAGER_BACKGROUND_POLICY = if ($NormalSmoke) { 'invalid' } else { $null }
     $env:GAME_MANAGER_STARTUP_TIMING = if ($NormalSmoke) { '1' } else { $null }
+    $env:GAME_MANAGER_STARTUP_PROFILE_WINDOW = if ($NormalSmoke) { '1' } else { $null }
     foreach ($size in $Sizes) {
         if ($size -notin @(500, 2000, 5000, 12320, 15000, 25000)) { throw "Unsupported size: $size" }
         $database = Join-Path $databaseRoot "synthetic-v1-seed-42-$size.sqlite3"
@@ -99,4 +101,5 @@ try {
     $env:GAME_MANAGER_ARTWORK_WORKERS = $savedWorkers
     $env:GAME_MANAGER_BACKGROUND_POLICY = $savedPolicy
     $env:GAME_MANAGER_STARTUP_TIMING = $savedStartupTiming
+    $env:GAME_MANAGER_STARTUP_PROFILE_WINDOW = $savedStartupProfile
 }

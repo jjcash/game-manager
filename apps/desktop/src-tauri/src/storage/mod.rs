@@ -198,6 +198,8 @@ impl Database {
     /// Benchmark UI never creates, migrates, checkpoints, or writes the selected file.
     #[cfg(feature = "benchmarks")]
     pub async fn benchmark_view(path: &Path) -> Result<Self> {
+        #[cfg(feature = "benchmarks")]
+        crate::startup_mark("readonly-open-entry");
         validate_path(path)?;
         let pool = SqlitePoolOptions::new()
             .max_connections(POOL_SIZE)
@@ -208,6 +210,8 @@ impl Database {
                     .foreign_keys(true),
             )
             .await?;
+        #[cfg(feature = "benchmarks")]
+        crate::startup_mark("readonly-pool-opened");
         let db = Self { pool };
         let purpose: String =
             sqlx::query_scalar("SELECT purpose FROM database_metadata WHERE singleton = 1")
@@ -240,6 +244,8 @@ impl Database {
                 "Benchmark migration history does not match this build; file preserved",
             ));
         }
+        #[cfg(feature = "benchmarks")]
+        crate::startup_mark("readonly-identity-migrations-validated");
         let config = synthetic::dataset_config(&db).await?;
         if db.counts().await?.games != i64::from(config.games) {
             return Err(StorageError::new(
@@ -248,6 +254,8 @@ impl Database {
                 "Benchmark count does not match metadata",
             ));
         }
+        #[cfg(feature = "benchmarks")]
+        crate::startup_mark("readonly-count-validated");
         Ok(db)
     }
 
@@ -271,6 +279,8 @@ impl Database {
     }
 
     pub(crate) async fn open(path: &Path, purpose: &str, allow_empty: bool) -> Result<Self> {
+        #[cfg(feature = "benchmarks")]
+        crate::startup_mark("application-open-entry");
         validate_path(path)?;
         let parent = path.parent().ok_or_else(|| {
             StorageError::new(ErrorCode::InvalidPath, "path", "Database has no parent")
@@ -278,6 +288,8 @@ impl Database {
         tokio::fs::create_dir_all(parent)
             .await
             .map_err(|e| StorageError::new(ErrorCode::Io, "create_directory", e))?;
+        #[cfg(feature = "benchmarks")]
+        crate::startup_mark("application-directory-created");
         // Inspect before migrations or changing journal mode. Never adopt an unrelated DB.
         let options = SqliteConnectOptions::new()
             .filename(path)
@@ -287,6 +299,8 @@ impl Database {
         let mut connection = SqliteConnection::connect_with(&options)
             .await
             .map_err(|e| StorageError::new(ErrorCode::Database, "connect", e))?;
+        #[cfg(feature = "benchmarks")]
+        crate::startup_mark("application-connection-opened");
         let tables: Vec<String> = sqlx::query_scalar(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
         )
@@ -322,6 +336,8 @@ impl Database {
                 ));
             }
         }
+        #[cfg(feature = "benchmarks")]
+        crate::startup_mark("application-identity-validated");
         // SQLx validates migration checksums and rejects versions absent from this binary.
         MIGRATOR
             // SQLx's direct entry point avoids its generic Acquire lifetime limitation
@@ -329,6 +345,8 @@ impl Database {
             .run_direct(None, &mut connection, false)
             .await
             .map_err(|e| StorageError::new(ErrorCode::Migration, "migrate", e))?;
+        #[cfg(feature = "benchmarks")]
+        crate::startup_mark("application-migrations-complete");
         if tables.is_empty() && purpose == "benchmark" {
             sqlx::query("UPDATE database_metadata SET purpose = 'benchmark' WHERE singleton = 1")
                 .execute(&mut connection)
@@ -348,6 +366,8 @@ impl Database {
                     .statement_cache_capacity(64),
             )
             .await?;
+        #[cfg(feature = "benchmarks")]
+        crate::startup_mark("application-wal-pool-opened");
         Ok(Self { pool })
     }
 
