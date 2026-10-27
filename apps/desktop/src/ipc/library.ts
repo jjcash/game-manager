@@ -1,7 +1,10 @@
-﻿// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 import { invoke } from "@tauri-apps/api/core";
 
 export interface LibraryInfo {
+  poolWaitMs?: number;
+  syntheticJobs?: boolean;
+  artworkWorkers?: number;
   total: number;
   source: string;
   diagnostics: boolean;
@@ -37,6 +40,7 @@ export interface LibraryRow {
   installed: boolean;
 }
 export interface LibraryWindow {
+  poolWaitMs?: number;
   offset: number;
   items: LibraryRow[];
   queryMs: number;
@@ -107,6 +111,13 @@ export async function getLibraryInfo(
   const v = await call("library_get_info", {
     criteria: criteria ?? defaultCriteria,
   });
+  if (
+    !record(v) ||
+    (v.syntheticJobs !== undefined && typeof v.syntheticJobs !== "boolean") ||
+    (v.artworkWorkers !== undefined &&
+      ![0, 1, 2].includes(v.artworkWorkers as number))
+  )
+    fail();
   if (
     !record(v) ||
     !integer(v.total) ||

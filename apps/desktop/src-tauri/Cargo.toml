@@ -22,13 +22,18 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "sqlite", "migrate", "macros"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "fs"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "fs", "time"] }
 serde_json = "1"
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"] }
 base64 = "0.22"
 
 [features]
 benchmarks = []
+
+[[bin]]
+name = "job-fixtures"
+path = "src/bin/job-fixtures.rs"
+required-features = ["benchmarks"]
 
 [[bin]]
 name = "artwork-fixtures"

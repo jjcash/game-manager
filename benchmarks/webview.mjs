@@ -25,6 +25,7 @@ export async function connectWebview(endpoint) {
   });
   let sequence = 0;
   const pending = new Map();
+  const listeners = new Set();
   socket.onmessage = (event) => {
     const m = JSON.parse(event.data);
     if (m.id) {
@@ -32,7 +33,7 @@ export async function connectWebview(endpoint) {
       pending.delete(m.id);
       if (m.error) p.reject(new Error(JSON.stringify(m.error)));
       else p.resolve(m.result);
-    }
+    } else for (const listener of listeners) listener(m);
   };
   function command(method, params = {}) {
     return new Promise((resolve, reject) => {
@@ -52,7 +53,7 @@ export async function connectWebview(endpoint) {
   }
   async function until(expression) {
     for (let i = 0; i < 200; i++) {
-      const r = await evaluate(`Boolean(${expression})`);
+      const r = await evaluate(`(async()=>Boolean(await (${expression})))()`);
       if (r) return r;
       await sleep(50);
     }
@@ -83,6 +84,10 @@ export async function connectWebview(endpoint) {
   }
 
   return {
+    onEvent(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
     evaluate,
     until,
     click,

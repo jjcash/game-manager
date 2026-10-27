@@ -53,8 +53,10 @@ fn public_error(mut error: crate::storage::StorageError) -> crate::storage::Stor
 
 #[tauri::command]
 pub async fn database_get_status(
+    budget: tauri::State<'_, std::sync::Arc<crate::scheduling::Budget>>,
     state: tauri::State<'_, crate::DatabaseState>,
 ) -> crate::storage::Result<crate::storage::DatabaseStatus> {
+    let _foreground = budget.enter();
     async { state.ready()?.status().await }
         .await
         .map_err(public_error)
@@ -62,9 +64,11 @@ pub async fn database_get_status(
 
 #[tauri::command]
 pub async fn library_get_page(
+    budget: tauri::State<'_, std::sync::Arc<crate::scheduling::Budget>>,
     state: tauri::State<'_, crate::DatabaseState>,
     request: crate::storage::PageRequest,
 ) -> crate::storage::Result<Vec<crate::storage::GameSummary>> {
+    let _foreground = budget.enter();
     async { state.ready()?.page(&request).await }
         .await
         .map_err(public_error)
@@ -73,6 +77,9 @@ pub async fn library_get_page(
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryInfo {
+    pool_wait_ms: f64,
+    synthetic_jobs: bool,
+    artwork_workers: u8,
     total: i64,
     source: String,
     diagnostics: bool,
@@ -83,15 +90,20 @@ pub struct LibraryInfo {
 
 #[tauri::command]
 pub async fn library_get_info(
+    budget: tauri::State<'_, std::sync::Arc<crate::scheduling::Budget>>,
     state: tauri::State<'_, crate::DatabaseState>,
     criteria: Option<crate::storage::query::Criteria>,
 ) -> crate::storage::Result<LibraryInfo> {
+    let _foreground = budget.enter();
     async {
         let criteria = criteria.unwrap_or_default();
         let start = std::time::Instant::now();
-        let total = state.ready()?.query_count(&criteria).await?;
+        let (total, pool_wait_ms) = state.ready()?.query_count_timed(&criteria).await?;
         let query_ms = start.elapsed().as_secs_f64() * 1000.0;
         Ok(LibraryInfo {
+            pool_wait_ms,
+            synthetic_jobs: state.synthetic_jobs,
+            artwork_workers: state.artwork_workers,
             total,
             library_total: state.ready()?.counts().await?.games,
             sources: state.ready()?.source_options().await?,
@@ -106,9 +118,11 @@ pub async fn library_get_info(
 
 #[tauri::command]
 pub async fn library_get_window(
+    budget: tauri::State<'_, std::sync::Arc<crate::scheduling::Budget>>,
     state: tauri::State<'_, crate::DatabaseState>,
     request: crate::storage::PageRequest,
 ) -> crate::storage::Result<crate::storage::LibraryWindow> {
+    let _foreground = budget.enter();
     async { state.ready()?.window(&request).await }
         .await
         .map_err(public_error)
@@ -116,12 +130,57 @@ pub async fn library_get_window(
 
 #[tauri::command]
 pub async fn library_query(
+    budget: tauri::State<'_, std::sync::Arc<crate::scheduling::Budget>>,
     state: tauri::State<'_, crate::DatabaseState>,
     request: crate::storage::query::QueryRequest,
 ) -> crate::storage::Result<crate::storage::LibraryWindow> {
+    let _foreground = budget.enter();
     async { state.ready()?.query_window(&request).await }
         .await
         .map_err(public_error)
+}
+
+#[cfg(feature = "benchmarks")]
+#[tauri::command]
+pub async fn synthetic_start(
+    state: tauri::State<'_, crate::JobState>,
+    request: crate::jobs::Request,
+) -> Result<crate::jobs::Snapshot, String> {
+    state
+        .0
+        .get()
+        .ok_or("Synthetic jobs unavailable")?
+        .start(request)
+        .await
+}
+#[cfg(feature = "benchmarks")]
+#[tauri::command]
+pub fn synthetic_list(
+    state: tauri::State<'_, crate::JobState>,
+    detailed: Option<bool>,
+) -> Result<crate::jobs::Report, String> {
+    let mut report = state.0.get().ok_or("Synthetic jobs unavailable")?.report();
+    if !detailed.unwrap_or(false) {
+        report.scheduling.foreground_ms.clear();
+        report.scheduling.worker_wait_ms.clear();
+        for job in &mut report.jobs {
+            job.pool_wait_ms.clear();
+            job.transaction_ms.clear();
+        }
+    }
+    Ok(report)
+}
+#[cfg(feature = "benchmarks")]
+#[tauri::command]
+pub fn synthetic_cancel(
+    state: tauri::State<'_, crate::JobState>,
+    id: u64,
+) -> Result<crate::jobs::Snapshot, String> {
+    state
+        .0
+        .get()
+        .ok_or("Synthetic jobs unavailable")?
+        .cancel(id)
 }
 
 #[cfg(test)]

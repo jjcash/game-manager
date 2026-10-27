@@ -77,3 +77,30 @@ The existing `frontend.ps1` runner accepts `-ArtworkDirectory` containing `artwo
 Build without benchmark features before `-NormalSmoke -Sizes 500 -Runs 1`: it verifies an empty isolated application library, successful Rust IPC, ignored benchmark dataset/artwork selection, no diagnostics and no alerts. It uses the same explicit source-database hashes, isolated data/profile paths, loopback transport and normal window shutdown as the benchmark runner. This is the preferred normal-build launch check.
 
 `library-bench query-measure --artwork ABSOLUTE_FIXTURE_ROOT --database ABSOLUTE_BENCHMARK_DB --iterations 50` adds two continuous artwork workers to the unchanged SQL scenarios. Run final measurements sequentially without competing builds/tests/generation, identify cache state and keep native IPC, SQL-only, rendering and profile observations separate.
+
+## M0.6 bounded synthetic jobs
+
+See [M0.6 verification](../docs/development/M0.6_VERIFICATION.md) for state transitions, limits, safety, complete measurements and remaining failures. This is a feature-gated simulator, not a real importer. Build the native application with `--features benchmarks` as above; normal release builds omit job handlers and ignore the synthetic configuration.
+
+```powershell
+./benchmarks/background.ps1 -DatabaseDirectory E:\dev\game-manager\benchmarks\data\m0.2-2026-10-25-01 -ArtworkDirectory E:\dev\game-manager\benchmarks\data -ResultsDirectory E:\dev\game-manager\benchmarks\results\m0.6-new-run
+```
+
+The four datasets are 500/12,320/15,000/25,000, seed 42. Default conditions are `idle`, `cpu`, `hash`, `write`, `art1`, `art2`, `mixed0`, `mixed1`, `mixed2`, `priority`. Parsing, hashing and mixed requests use seed 20261026 and 100,000 saturated records, restarted as necessary while the query/UI probes run. No-art conditions disable thumbnail work; artwork conditions use one/two continuous requests during the isolated IPC probe. Mixed conditions share a two-worker CPU ceiling with the job; `mixed0` keeps the same job kind/seed/resize while disabling real thumbnail work. `priority` is mixed/two-art with foreground-aware admission. Record active-job duty samples; do not assume background work was active simply because requested.
+
+Every condition gets an independently generated disposable job database under `RESULTS/benchmarks/data/jobs-SIZE-CASE`, an empty derived-art cache and a fresh profile. Known synthetic original files are hardlinked on NTFS without writing them. Canonical source databases are SHA-256 checked. Four criteria retain 20 count/page timing samples each. Native UI probes exercise text, composed source/year/installation filters, sorting, rapid jumps, tail selection and real job controls. Each run then tests exact completion, bounded admission, cancellation, rollback/recovery and validates the closed database. The runner holds process handles and requires clean native shutdown.
+
+Options: `-Sizes @(15000,25000)`, `-Cases @('mixed0','art1','art2','mixed1','mixed2','priority')`, `-Iterations 20`, `-Cycles 5`, `-SampleMemory`, `-Trace`, `-TraceSort`, `-ClosedDiagnostics`, `-ShutdownJob -RestartCheck`. Use separate new results directories for memory/profile/shutdown controls. Default primary latency measurements have no periodic WMI sampling; a final process-memory point remains outside the observed frames. Trace captures have a 16-MiB ring and 64-MiB output cap. Whole-run trace rings can overwrite earlier events under high load; use `-TraceSort` to retain a focused transition, optionally paired with `-ClosedDiagnostics`. The frame observer separates timed IPC/UI from later safety/cycle phases, retains bounded intervals/actions/long tasks and makes no FPS claim.
+
+The `job-fixtures.exe` benchmark-only CLI generates, audits and safely cleans an explicit root:
+
+```powershell
+$jobs = './apps/desktop/src-tauri/target/release/job-fixtures.exe'
+& $jobs E:\dev\game-manager\benchmarks\data\jobs-example 15000 42
+& $jobs verify E:\dev\game-manager\benchmarks\data\jobs-example
+& $jobs clean E:\dev\game-manager\benchmarks\data\jobs-example
+```
+
+Root naming, marker/purpose checks, canonical paths, exclusive lease and owned-file inventory restrict cleanup. Close the app before verification/cleanup. Reconstruct by generating a new root. No automatic cleanup of failed generation, source databases, artwork originals or personal data occurs. M0.5's artwork CLI remains the original-source cleanup mechanism.
+
+Normal-production verification uses the existing `frontend.ps1 -NormalSmoke -Sizes 500 -Runs 1` after an ordinary build. It now also verifies absent synthetic controls/rejected job IPC and ignores deliberately invalid synthetic worker/policy/root environment values.

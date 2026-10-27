@@ -1,7 +1,9 @@
-﻿// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Tauri invoke cannot cancel a running native command. Keep its permit until it
 // settles. Abort removes queued work immediately; it never reaches native IPC.
 export class RequestGate {
+  readonly waits: number[] = [];
+  maxQueued = 0;
   private active = false;
   private queue: Array<() => void> = [];
   get queued() {
@@ -11,10 +13,13 @@ export class RequestGate {
     return Number(this.active);
   }
   async run<T>(signal: AbortSignal, work: () => Promise<T>): Promise<T> {
+    const enqueued = performance.now();
     await new Promise<void>((resolve, reject) => {
       const start = () => {
         signal.removeEventListener("abort", abort);
         this.active = true;
+        if (this.waits.length === 1024) this.waits.shift();
+        this.waits.push(performance.now() - enqueued);
         resolve();
       };
       const abort = () => {
@@ -28,6 +33,7 @@ export class RequestGate {
       if (!this.active) start();
       else {
         this.queue.push(start);
+        this.maxQueued = Math.max(this.maxQueued, this.queue.length);
         signal.addEventListener("abort", abort, { once: true });
       }
     });

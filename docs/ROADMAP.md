@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: **M0 is in progress: M0.1 through M0.5 complete within their verified scope; M0.1.1 CI awaits documented GitHub verification.** M0.6 and M1-M5 have not started. See [PROJECT_STATUS](PROJECT_STATUS.md) for measured limitations; the wider performance gate remains open.
+Status: **M0 is in progress: M0.1 through M0.6 complete within their verified scope; M0.1.1 CI awaits documented GitHub verification.** M0.7 and M1-M5 have not started. See [PROJECT_STATUS](PROJECT_STATUS.md) for measured limitations; the wider performance gate remains open.
 
 ## M0 — Performance-validation prototype
 
@@ -10,8 +10,8 @@ Status: **M0 is in progress: M0.1 through M0.5 complete within their verified sc
 - [x] Title/release sorting UI in both directions, stable ID ties and explicit NULL handling - M0.4.
 - [x] Rust title substring search plus installation/source/year filters, bounded counts/windows - M0.4.
 - [x] Real local synthetic thumbnails with bounded jobs/queue/result/disk caches - M0.5; see [artwork evidence](development/M0.5_VERIFICATION.md).
-- [ ] Background import simulator with progress and safe cancellation.
-- [ ] Measure startup, scrolling, search, memory and interaction under load.
+- [x] Synthetic background-load simulator with bounded progress, scheduling and safe cancellation — M0.6; isolated fixtures only.
+- [ ] Complete wider startup/scroll/search/memory/interaction gate — M0.6 records SSD contention and component readiness; controlled process-cold, HDD/lower-memory and longer-session evidence remain open.
 - [x] Record initial Details View readiness, scrolling/frame intervals, IPC/query durations and memory point samples at 500, 12,320, 15,000 and 25,000 — M0.3; wider startup/load/long-session work remains open.
 - [ ] Run comparable SSD and HDD measurements.
 
@@ -75,7 +75,15 @@ Complete within the synthetic prototype scope; see [M0.5 verification](developme
 
 All local quality checks, 29 frontend/32 Rust tests and production builds passed; normal optimized startup and disabled benchmark selection were verified in an isolated root. Eight UI runs at 500/12,320/15,000/25,000, saturated-cache IPC/SQL probes, matched browsing controls, a CPU profile and a 20-pass memory run are documented. Primary release-scale installed SQL p95 reached 140.69 ms under continuous artwork; stress reached 299.79 ms. Long frames and shared-resource contention remain open. The longer short-run memory observation does not complete all M0 memory/hardware goals.
 
-The next separately authorized task is M0.6's synthetic background-load simulator with progress/cancellation and measured scheduling under SQL/artwork load. No M0.6 work starts automatically. Query architecture/index changes remain a separate proposal.
+M0.6 was subsequently authorized and is recorded below. Query architecture/index changes remain a separate proposal.
+
+### M0.6 - Synthetic background load and responsiveness
+
+Complete within the synthetic prototype scope; see [M0.6 verification](development/M0.6_VERIFICATION.md). Tokio scheduling enforces one active/two queued jobs, a two-worker shared resource ceiling, bounded progress/history, typed state/failure and cooperative cancellation. Hashing/parsing and short workload write batches use independently generated disposable databases with the existing four-connection pool. Canonical benchmarks and ordinary application databases remain isolated. Normal production binaries omit job handlers and controls.
+
+All applicable local quality checks, 36 frontend/44 Rust tests (28 default), production/benchmark builds and normal-launch isolation passed. Forty primary conditions at 500/12,320/15,000/25,000 retain 3,200 metadata and 3,200 page samples, with worker/backoff repeats, matched no-thumbnail mixed work, existing native regression drivers, paired M0.5/M0.6 artifacts, memory cycles, renderer traces and graceful shutdown/restart. Cancellation/failure preserves exact valid partial counts, not false completion.
+
+The 150-ms filter/sort goal is not generally met, including some 15,000 cases; stress installed/not-installed/combined costs remain open. One worker reduces some query tails at slower artwork readiness; default stays two pending broader evidence. Reproduced long tasks are predominantly renderer Layout in focused traces, but the CSS trigger and unprofiled 235-ms outlier remain unknown. Memory is measured, not proven strictly bounded. HDD/lower-memory and long-session M0 gates remain open. M0.7 is proposed for focused latency/layout/fairness validation only and has not started. No real importer, commit or push is included.
 
 ## M1 — Library foundation
 

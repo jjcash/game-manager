@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 import {
   cleanup,
   act,
@@ -90,6 +90,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("Details View", () => {
+  it("does not expose synthetic workload controls without explicit backend availability", async () => {
+    render(<LibraryView />);
+    await screen.findByText("Game 0");
+    expect(screen.queryByLabelText("Synthetic background testing")).toBeNull();
+  });
   it("keeps filters, keyboard selection and bounded rows usable while artwork is pending", async () => {
     const callbacks: ((result: ArtworkResult) => void)[] = [];
     const release = vi.fn();

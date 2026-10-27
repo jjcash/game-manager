@@ -172,6 +172,8 @@ pub struct LibraryWindow {
     pub offset: u32,
     pub items: Vec<LibraryRow>,
     pub query_ms: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pool_wait_ms: Option<f64>,
 }
 
 impl From<GameSummary> for LibraryRow {
@@ -261,6 +263,7 @@ impl Database {
             offset: request.offset,
             items,
             query_ms: start.elapsed().as_secs_f64() * 1000.0,
+            pool_wait_ms: None,
         })
     }
     pub async fn initialize(path: &Path) -> Result<Self> {

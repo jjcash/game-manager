@@ -4,6 +4,8 @@ export interface Metrics {
   criteriaStarted?: number;
   criteriaVisibleMs?: number;
   counts: number[];
+  countPoolWaits: number[];
+  pagePoolWaits: number[];
   metadataRequests: number[];
   infoMs?: number;
   usableMs?: number;
@@ -24,6 +26,8 @@ export function createMetrics(): Metrics {
   return {
     started: performance.now(),
     counts: [],
+    countPoolWaits: [],
+    pagePoolWaits: [],
     metadataRequests: [],
     requests: [],
     database: [],

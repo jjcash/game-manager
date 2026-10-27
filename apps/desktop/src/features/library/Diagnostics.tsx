@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 import { useEffect, useState } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { sample, type Metrics } from "./metrics";
@@ -58,6 +58,10 @@ export function Diagnostics({
     performance as Performance & { memory?: { usedJSHeapSize: number } }
   ).memory?.usedJSHeapSize;
   const report = {
+    foregroundQueueWaitMs: distribution(pageGate.waits),
+    countPoolWaitMs: distribution(m.countPoolWaits),
+    pagePoolWaitMs: distribution(m.pagePoolWaits),
+    maxQueuedLibraryRequests: pageGate.maxQueued,
     startedAt: m.started,
     artwork: {
       active: artworkQueue.active,

@@ -15,6 +15,15 @@ try {
   assert.equal(result.status.backend, "rust");
   assert.equal(result.info.total, 0);
   assert.equal(result.info.diagnostics, false);
+  assert.equal(result.info.syntheticJobs, false);
+  assert.equal(
+    await evaluate(`document.querySelectorAll('.synthetic-panel').length`),
+    0,
+  );
+  result.syntheticCommandRejected = await evaluate(
+    `window.__TAURI_INTERNALS__.invoke('synthetic_start',{request:{kind:'cpu',records:1,seed:1,intensity:'gentle'}}).then(()=>false,()=>true)`,
+  );
+  assert.equal(result.syntheticCommandRejected, true);
   assert.equal(result.info.source, "Local application library");
   assert.equal(result.artwork.status, "missing");
   assert.equal(result.diagnostics, 0);

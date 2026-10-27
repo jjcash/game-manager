@@ -13,6 +13,9 @@ fn main() {
             "library_query",
             "artwork_get_thumbnail",
             "artwork_get_stats",
+            "synthetic_start",
+            "synthetic_list",
+            "synthetic_cancel",
         ]),
     ))
     .expect("could not generate Game Manager's Tauri build context");
