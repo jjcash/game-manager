@@ -398,6 +398,36 @@ h1 {
   height: 27px;
   object-fit: cover;
 }
+.synthetic-panel {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.synthetic-panel p {
+  color: var(--color-muted);
+  margin: 8px 0;
+}
+.synthetic-panel label {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 12px 6px 0;
+}
+.synthetic-panel select {
+  background: #172126;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+.synthetic-panel li {
+  margin-top: 10px;
+}
+.synthetic-panel progress {
+  width: 120px;
+  margin-inline: 8px;
+}
 .installed {
   color: var(--color-accent);
 }

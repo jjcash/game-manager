@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-synthetic-cancel"
+description = "Enables the synthetic_cancel command without any pre-configured scope."
+commands.allow = ["synthetic_cancel"]
+
+[[permission]]
+identifier = "deny-synthetic-cancel"
+description = "Denies the synthetic_cancel command without any pre-configured scope."
+commands.deny = ["synthetic_cancel"]

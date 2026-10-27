@@ -43,6 +43,13 @@ export async function getThumbnail(id: string): Promise<ArtworkResult> {
  * retains its slot until settlement, but cannot update a released consumer.
  */
 export class ArtworkQueue {
+  private concurrency = 2;
+  configure(workers: number) {
+    if (![0, 1, 2].includes(workers))
+      throw new Error("Invalid artwork worker limit");
+    this.concurrency = workers;
+    this.schedule();
+  }
   private jobs = new Map<string, Job>();
   private cache = new Map<string, { result: ArtworkResult; at: number }>();
   private timer?: ReturnType<typeof setTimeout>;
@@ -70,6 +77,10 @@ export class ArtworkQueue {
     this.cache.clear();
   }
   subscribe(id: string, priority: number, listener: Listener) {
+    if (this.concurrency === 0) {
+      listener({ ...failed, status: "missing" });
+      return () => {};
+    }
     const entry = this.cache.get(id);
     if (
       entry &&
@@ -125,7 +136,7 @@ export class ArtworkQueue {
     }, 16);
   }
   private pump() {
-    while (this.active < 2) {
+    while (this.active < this.concurrency) {
       const job = [...this.jobs.values()]
         .filter((j) => !j.active && j.listeners.size)
         .sort(

@@ -176,15 +176,30 @@ pub struct SourceOption {
 }
 impl Database {
     pub async fn query_count(&self, criteria: &Criteria) -> Result<i64> {
+        Ok(self.query_count_timed(criteria).await?.0)
+    }
+    pub async fn query_count_timed(&self, criteria: &Criteria) -> Result<(i64, f64)> {
         criteria.validate()?;
+        let waiting = Instant::now();
+        let mut connection = self.pool.acquire().await?;
+        let pool_wait_ms = waiting.elapsed().as_secs_f64() * 1000.0;
         if criteria.unfiltered() {
-            return Ok(sqlx::query_scalar("SELECT count(*) FROM games")
-                .fetch_one(&self.pool)
-                .await?);
+            return Ok((
+                sqlx::query_scalar("SELECT count(*) FROM games")
+                    .fetch_one(&mut *connection)
+                    .await?,
+                pool_wait_ms,
+            ));
         }
         let mut query = QueryBuilder::new("SELECT count(*) FROM games g WHERE 1=1");
         criteria.predicate(&mut query);
-        Ok(query.build_query_scalar().fetch_one(&self.pool).await?)
+        Ok((
+            query
+                .build_query_scalar()
+                .fetch_one(&mut *connection)
+                .await?,
+            pool_wait_ms,
+        ))
     }
     pub async fn source_options(&self) -> Result<Vec<SourceOption>> {
         Ok(sqlx::query_as("SELECT id,display_name AS name FROM library_sources ORDER BY display_name,id LIMIT 100").fetch_all(&self.pool).await?)
@@ -192,15 +207,18 @@ impl Database {
     pub async fn query_window(&self, request: &QueryRequest) -> Result<LibraryWindow> {
         request.validate()?;
         let start = Instant::now();
+        let mut connection = self.pool.acquire().await?;
+        let pool_wait_ms = start.elapsed().as_secs_f64() * 1000.0;
         let items: Vec<GameSummary> = request
             .builder(false)
             .build_query_as()
-            .fetch_all(&self.pool)
+            .fetch_all(&mut *connection)
             .await?;
         Ok(LibraryWindow {
             offset: request.offset,
             items: items.into_iter().map(LibraryRow::from).collect(),
             query_ms: start.elapsed().as_secs_f64() * 1000.0,
+            pool_wait_ms: Some(pool_wait_ms),
         })
     }
     #[cfg(feature = "benchmarks")]

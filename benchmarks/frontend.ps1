@@ -30,6 +30,9 @@ $savedArguments = $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
 $savedProfile = $env:WEBVIEW2_USER_DATA_FOLDER
 $savedDataRoot = $env:GAME_MANAGER_DATA_DIR
 $savedArtwork = $env:GAME_MANAGER_BENCHMARK_ARTWORK
+$savedJobs = $env:GAME_MANAGER_SYNTHETIC_ROOT
+$savedWorkers = $env:GAME_MANAGER_ARTWORK_WORKERS
+$savedPolicy = $env:GAME_MANAGER_BACKGROUND_POLICY
 function Get-AppMemory([int]$RootId) {
     $processes = Get-CimInstance Win32_Process
     $ids = @($RootId)
@@ -45,6 +48,10 @@ try {
     $env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $resultsRoot 'webview-profile'
     # Even an accidentally ordinary build must not open the user's normal DB.
     $env:GAME_MANAGER_DATA_DIR = Join-Path $resultsRoot 'application-fallback'
+    # Normal builds must ignore even invalid benchmark-only configuration.
+    $env:GAME_MANAGER_SYNTHETIC_ROOT = if ($NormalSmoke) { 'invalid-synthetic-root' } else { $null }
+    $env:GAME_MANAGER_ARTWORK_WORKERS = if ($NormalSmoke) { 'invalid' } else { $null }
+    $env:GAME_MANAGER_BACKGROUND_POLICY = if ($NormalSmoke) { 'invalid' } else { $null }
     foreach ($size in $Sizes) {
         if ($size -notin @(500, 2000, 5000, 12320, 15000, 25000)) { throw "Unsupported size: $size" }
         $database = Join-Path $databaseRoot "synthetic-v1-seed-42-$size.sqlite3"
@@ -94,4 +101,7 @@ try {
     $env:WEBVIEW2_USER_DATA_FOLDER = $savedProfile
     $env:GAME_MANAGER_DATA_DIR = $savedDataRoot
     $env:GAME_MANAGER_BENCHMARK_ARTWORK = $savedArtwork
+    $env:GAME_MANAGER_SYNTHETIC_ROOT = $savedJobs
+    $env:GAME_MANAGER_ARTWORK_WORKERS = $savedWorkers
+    $env:GAME_MANAGER_BACKGROUND_POLICY = $savedPolicy
 }

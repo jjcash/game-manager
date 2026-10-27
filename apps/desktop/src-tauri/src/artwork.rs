@@ -67,6 +67,8 @@ struct Cache {
     stats: Stats,
 }
 pub struct Service {
+    workers: u8,
+    budget: Arc<crate::scheduling::Budget>,
     root: PathBuf,
     seed: u64,
     games: u32,
@@ -86,6 +88,16 @@ impl Drop for DecodeGuard<'_> {
 impl Service {
     /// Opens only explicitly generated fixture roots. Never creates source assets.
     pub fn open(root: &Path) -> Result<Arc<Self>, String> {
+        Self::open_with_policy(root, 2, crate::scheduling::Budget::new(false))
+    }
+    pub fn open_with_policy(
+        root: &Path,
+        workers: u8,
+        budget: Arc<crate::scheduling::Budget>,
+    ) -> Result<Arc<Self>, String> {
+        if workers > 2 {
+            return Err("Artwork workers must be 0, 1 or 2".into());
+        }
         let root = root.canonicalize().map_err(|_| "Artwork unavailable")?;
         let config = fixtures::read_config(&root)?;
         for child in ["originals", "thumbnails", "temporary"] {
@@ -103,6 +115,8 @@ impl Service {
             }
         }
         let service = Arc::new(Self {
+            workers,
+            budget,
             root,
             seed: config.seed,
             games: config.games,
@@ -146,6 +160,9 @@ impl Service {
         let Some(asset) = self.asset(id) else {
             return Reply::empty("invalid");
         };
+        if self.workers == 0 {
+            return Reply::empty("missing");
+        }
         let mut receiver = {
             let mut flights = self.flights.lock().unwrap();
             if let Some(flight) = flights.get_mut(&asset) {
@@ -157,7 +174,7 @@ impl Service {
                 self.cache.lock().unwrap().stats.deduplicated += 1;
                 flight.receiver.clone()
             } else {
-                if flights.len() >= 2 {
+                if flights.len() >= usize::from(self.workers) {
                     self.cache.lock().unwrap().stats.busy += 1;
                     return Reply::empty("busy");
                 }
@@ -176,10 +193,15 @@ impl Service {
                 }
                 let service = Arc::clone(self);
                 tokio::spawn(async move {
+                    let cancel = std::sync::atomic::AtomicBool::new(false);
+                    let permit = service.budget.acquire(&cancel).await;
                     let worker = Arc::clone(&service);
-                    let reply = tokio::task::spawn_blocking(move || worker.load(asset))
-                        .await
-                        .unwrap_or_else(|_| Reply::empty("failed"));
+                    let reply = tokio::task::spawn_blocking(move || {
+                        let _permit = permit;
+                        worker.load(asset)
+                    })
+                    .await
+                    .unwrap_or_else(|_| Reply::empty("failed"));
                     sender.send_replace(Some(reply));
                     let mut flights = service.flights.lock().unwrap();
                     flights.remove(&asset);

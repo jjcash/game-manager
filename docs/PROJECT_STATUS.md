@@ -1,10 +1,10 @@
 # Project Status
 
-Last verification: 2026-10-26. See [M0.1 evidence](development/M0.1_VERIFICATION.md), [M0.1.1 CI verification](development/M0.1.1_CI_VERIFICATION.md), [M0.2 database evidence](development/M0.2_VERIFICATION.md), [M0.3 frontend evidence](development/M0.3_VERIFICATION.md), [M0.4 search/filter/sort verification](development/M0.4_VERIFICATION.md), and [M0.5 artwork verification](development/M0.5_VERIFICATION.md).
+Last verification: 2026-10-26. See [M0.1 evidence](development/M0.1_VERIFICATION.md), [M0.1.1 CI verification](development/M0.1.1_CI_VERIFICATION.md), [M0.2 database evidence](development/M0.2_VERIFICATION.md), [M0.3 frontend evidence](development/M0.3_VERIFICATION.md), [M0.4 search/filter/sort verification](development/M0.4_VERIFICATION.md), [M0.5 artwork verification](development/M0.5_VERIFICATION.md), and [M0.6 background-load verification](development/M0.6_VERIFICATION.md).
 
 ## Actual state
 
-**M0.1 through M0.5 are complete within their verified scope.** The Rust/SQLite-backed virtualized Details View supports search/filter/sort and a compact synthetic-thumbnail column with separate bounded artwork admission, decoding and caches. All eight final UI runs passed across 500, 12,320, 15,000 and 25,000 games, plus cache-saturation IPC/SQL probes and browsing/profile controls. M0 remains incomplete: background-load simulation, HDD/lower-memory, controlled process startup and longer-session validation remain pending. Stress-count costs, artwork contention and occasional long frames remain measured limitations. M0.6 has not started.
+**M0.1 through M0.6 are complete within their verified synthetic scope.** The Rust/SQLite-backed virtualized Details View supports search/filter/sort, bounded synthetic thumbnails and feature-gated background jobs with progress/cancellation. M0.6 measured 500/12,320/15,000/25,000 games under CPU, hashing, writes, zero/one/two thumbnail workers and combined load, plus policy repeats, memory cycles, renderer traces and production isolation. M0 remains incomplete: provisional latency budgets are not generally met; HDD/lower-memory, controlled process startup and longer-session validation remain open. The 235-ms frame outlier and precise cause of expensive renderer Layout remain unresolved. M0.7 has not started.
 
 Historical prototype checkmarks were accidental and explicitly withdrawn by the user. They remain invalid; the progress below comes from the current implementation and checks. Specifications and ADRs retain their planning baseline; this file governs current completion claims.
 
@@ -18,10 +18,11 @@ Historical prototype checkmarks were accidental and explicitly withdrawn by the 
 | Software license                                         | GPL-3.0-or-later accepted; root LICENSE, manifest metadata and first-party SPDX notices added                        |
 | Desktop app and UI                                       | Dark Tauri shell and virtualized Details View with search/filter/sort/thumbnails; Mods/Settings remain placeholders             |
 | Frontend-backend communication                           | Original probes/page commands retained; typed criteria/count/window IPC and runtime validation verified              |
-| Development quality checks                               | Frozen install, TypeScript, lint, formatting, 29 frontend/32 Rust tests and production frontend/native builds passed |
+| Development quality checks                               | Frozen install, TypeScript, lint, formatting, 36 frontend/44 Rust tests and production frontend/native builds passed |
 | SQLite database/migrations                               | M0.2 complete: SQLx/SQLite, versioned migration, purpose separation, WAL/FK bounded pool, status/count/page services |
 | Details View/grid and artwork pipeline                   | M0.5 compact synthetic thumbnails, bounded jobs/queue/caches verified; cover grid/providers not implemented                        |
-| M0 prototype and benchmarks                              | Shell/SQLite/Details View/query prototype complete; broader M0 gate and stress limitations remain open               |
+| M0 prototype and benchmarks                              | Shell/SQLite/Details/artwork/synthetic-load slices complete; broader M0 gate and stress limitations remain open               |
+| Synthetic background jobs | M0.6: one active/two queued, shared CPU ceiling two, isolated writes, progress/cancellation; absent from normal native builds |
 | Store imports, launching and activity                    | Not implemented                                                                                                      |
 | Mod adapters, deployment and recovery                    | Not implemented or tested                                                                                            |
 | Continuous integration                                   | M0.1.1 workflow valid; all equivalent local checks passed; first successful GitHub run still required                |
@@ -88,9 +89,21 @@ Artwork contention remains material: installed count-plus-page p95 at 15,000 ros
 
 Process memory initially grew across short passes. A 20-pass release-scale run then stayed around 312-320 MiB in its last ten scrolling passes, reaching about 344 MiB after the query matrix. This is limited short-run stabilization evidence, not a strict process-memory bound or long-session leak proof. The report records full timings, memory points, cold/retained caches, observer effects, exact commands, security tests, corrected failures and limitations. Generated assets/results remain ignored. No real installation/personal library, commit, push or M0.6 work was involved.
 
+## M0.6 implementation and evidence
+
+Complete within the synthetic prototype scope; see [M0.6 verification](development/M0.6_VERIFICATION.md). Based on merged M0.5 `da431f3`, the Rust-owned scheduler admits one active/two queued jobs, shares two resource workers with artwork, publishes bounded typed progress and cooperatively cancels at safe record/chunk/batch boundaries. Independently generated disposable databases use the existing four-connection pool and 64-record workload transactions. Valid committed prefixes remain after cancellation/failure; restart never replays automatically. There is no real importer, directory scan, provider, production migration or arbitrary executor.
+
+Frozen installation, type checking, ESLint/Prettier/rustfmt, default/all-feature warnings-denied Clippy, 36 frontend tests, 44 all-feature Rust tests (28 default), benchmark/production frontend/native builds and normal optimized launch passed. The ordinary binary omits job handlers, rejects synthetic commands, ignores invalid benchmark-only configuration and exposes no job controls. No source game files or personal databases were used. All changes remain uncommitted/unpushed.
+
+Forty primary native conditions retain 3,200 metadata and 3,200 window samples and pass 240 UI scenario observations plus exact completion, cancellation, failure and integrity checks. Bounds observed: 26 rows, six pages, one library request, one background job and two shared workers. Release/stress repeats, matched mixed jobs without thumbnail work, existing artwork/query/browsing drivers, paired M0.5/M0.6 artifacts, five-cycle memory captures at all four sizes, a 20-cycle release capture and renderer traces are documented separately from primary latency timings.
+
+Known failures remain explicit. Installed metadata/window p95 reached 157.2 ms idle and 176.5 ms with continuous two-worker artwork at 15,000; 25,000 reached 285.2/523.4 ms. One artwork worker reduced installed tails in both captured orders but slowed visible readiness, and its release repeat still exceeded 150 ms. Default artwork policy stays two/unthrottled. Rust cancellation measured 1.8–6.6 ms; browser-observed completion 10.3–77.5 ms. These are observations, not deadlines.
+
+Focused profiles attribute reproduced 53?74 ms tasks mainly to full-document Layout; hiding diagnostics did not remove them. The specific layout/CSS cause and an unprofiled 235-ms write-load task remain unknown. Late 20-cycle process-private points fluctuate around 338?364 MiB, without proving a hard bound or leak-free long session. No SQL/index/FTS/count-cache change was made. The broader M0 performance/hardware gate remains open.
+
 ## Recommended next separately authorized task
 
-Separately authorize M0.6: a synthetic background-load/import simulator with progress, bounded scheduling and safe cancellation, measuring competition with interactive SQL and artwork. Include worker-count/backoff experiments and preserve all current bounds/cancellation/selection tests. Keep stress-query optimization and deeper renderer/native profiling explicitly scoped; no new index/count cache/FTS switch is approved by this task. HDD, lower-memory, physical scaling, controlled OS-cold process startup and longer-session memory evidence remain open. No new GitHub CI run or branch-protection enforcement is claimed. Do not begin M0.6 automatically.
+Proposed M0.7: isolate the expensive sort-transition document Layout, repeat foreground latency/fairness experiments, and separately scope count-query optimization before changing SQL/indexes/FTS/caches. Extend process-memory, HDD and lower-memory evidence and retain the immutable synthetic baselines. Keep 15,000 as the release target and 25,000 as stress. No real imports or M0.7 work starts automatically; no new GitHub CI run or branch-protection enforcement is claimed.
 
 ## Genuine remaining work
 

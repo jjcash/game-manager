@@ -126,3 +126,25 @@ it("does not notify released active subscribers", async () => {
   expect(listener).not.toHaveBeenCalled();
   expect(queue.active).toBe(0);
 });
+it("supports zero or one artwork worker without an unbounded queue", async () => {
+  vi.useFakeTimers();
+  const pending = deferred();
+  const load = vi.fn(() => pending.promise);
+  const queue = new ArtworkQueue(load);
+  queue.configure(0);
+  const listener = vi.fn();
+  queue.subscribe("disabled", 0, listener);
+  expect(listener).toHaveBeenCalledWith(
+    expect.objectContaining({ status: "missing" }),
+  );
+  expect(load).not.toHaveBeenCalled();
+  queue.configure(1);
+  queue.subscribe("first", 0, vi.fn());
+  queue.subscribe("second", 0, vi.fn());
+  await vi.advanceTimersByTimeAsync(16);
+  expect(queue.active).toBe(1);
+  expect(queue.queued).toBe(1);
+  pending.resolve(ready);
+  await vi.advanceTimersByTimeAsync(50);
+  expect(queue.maxActive).toBe(1);
+});

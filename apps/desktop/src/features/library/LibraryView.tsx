@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 import {
   memo,
   Profiler,
@@ -38,6 +38,7 @@ import { artworkQueue } from "./artwork";
 import { useLibraryUI } from "./state";
 import { LibraryControls } from "./LibraryControls";
 import { Diagnostics } from "./Diagnostics";
+import { JobPanel } from "../jobs/JobPanel";
 import { createMetrics, sample, type Metrics } from "./metrics";
 
 export function LibraryView() {
@@ -121,6 +122,8 @@ function Library({
             sample(metrics.metadataRequests, performance.now() - started);
             if (result.queryMs !== undefined)
               sample(metrics.counts, result.queryMs);
+            if (result.poolWaitMs !== undefined)
+              sample(metrics.countPoolWaits, result.poolWaitMs);
           }
           return result;
         } finally {
@@ -132,6 +135,9 @@ function Library({
     retryDelay: 100,
   });
   const scrollRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    artworkQueue.configure(info.data?.artworkWorkers ?? 2);
+  }, [info.data?.artworkWorkers]);
   const gridRef = useRef<HTMLDivElement>(null);
   const selection = useLibraryUI((s) => s.selection);
   const select = useLibraryUI((s) => s.select);
@@ -203,6 +209,8 @@ function Library({
             if (!signal.aborted && info.data?.diagnostics) {
               sample(metrics.requests, performance.now() - started);
               sample(metrics.database, result.queryMs);
+              if (result.poolWaitMs !== undefined)
+                sample(metrics.pagePoolWaits, result.poolWaitMs);
             }
             return result;
           } finally {
@@ -488,6 +496,7 @@ function Library({
                 : "Ready to browse"}
         <span>100 rows / page · {MAX_CACHED_PAGES} pages maximum</span>
       </div>
+      {info.data?.syntheticJobs && <JobPanel />}
       {info.data?.diagnostics && (
         <Diagnostics
           metrics={metrics}
