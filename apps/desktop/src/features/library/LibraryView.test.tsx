@@ -90,6 +90,62 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("Details View", () => {
+  it.each(["installed", "notInstalled"] as const)(
+    "resets a deep %s result before release sorting Unicode titles and retains control focus",
+    async (installed) => {
+      vi.mocked(getLibraryWindow).mockImplementation(
+        async (offset, _limit, criteria) => ({
+          ...response(offset),
+          items: response(offset).items.map((item) => ({
+            ...item,
+            title:
+              criteria?.sort === "releaseDate"
+                ? `\u661f\u306e Islands ${item.id.slice(3)}`
+                : item.title,
+          })),
+        }),
+      );
+      render(<LibraryView />);
+      await screen.findByText("Game 0");
+      fireEvent.change(screen.getByLabelText("Installation filter"), {
+        target: { value: installed },
+      });
+      await screen.findByText("Game 0");
+      fireEvent.keyDown(screen.getByRole("grid"), { key: "End" });
+      await screen.findByText("Game 14999");
+      const sort = screen.getByLabelText("Sort games");
+      sort.focus();
+      fireEvent.change(screen.getByLabelText("Installation filter"), {
+        target: { value: "all" },
+      });
+      fireEvent.change(sort, { target: { value: "releaseDate:desc" } });
+      await screen.findByText("\u661f\u306e Islands 0");
+      expect(document.activeElement).toBe(sort);
+      expect(useLibraryUI.getState().selection).toBeNull();
+      expect(screen.getByRole("rowgroup").scrollTop).toBe(0);
+      expect(
+        screen
+          .getByRole("columnheader", { name: "Release" })
+          .getAttribute("aria-sort"),
+      ).toBe("descending");
+      const rows = screen.getAllByRole("row").slice(1);
+      expect(rows.length).toBeLessThanOrEqual(36);
+      rows.forEach((element, index) => {
+        expect(element.style.height).toBe("38px");
+        expect(element.style.transform).toBe(`translateY(${index * 38}px)`);
+      });
+      expect(getLibraryWindow).toHaveBeenLastCalledWith(
+        0,
+        100,
+        expect.objectContaining({
+          installed: "all",
+          sort: "releaseDate",
+          direction: "desc",
+        }),
+      );
+      expect(pageGate.activeRequests).toBeLessThanOrEqual(1);
+    },
+  );
   it("does not expose synthetic workload controls without explicit backend availability", async () => {
     render(<LibraryView />);
     await screen.findByText("Game 0");

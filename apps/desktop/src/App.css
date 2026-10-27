@@ -371,6 +371,10 @@ h1 {
   box-shadow: inset 3px 0 var(--color-accent);
 }
 .game-title {
+  /* Keep the measured optional fallback local to titles: changing the global
+     stack also changes the thumbnail placeholder's font and startup work. */
+  font-family:
+    "Segoe UI Variable", "Segoe UI", "Noto Sans JP", system-ui, sans-serif;
   font-weight: 500;
   color: #e8eef0;
 }
