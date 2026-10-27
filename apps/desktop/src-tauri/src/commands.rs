@@ -16,6 +16,8 @@ pub async fn artwork_get_thumbnail(
 
 #[tauri::command]
 pub fn artwork_get_stats(state: tauri::State<'_, crate::ArtworkState>) -> crate::artwork::Stats {
+    #[cfg(feature = "benchmarks")]
+    crate::startup_flush();
     state
         .0
         .as_ref()
@@ -94,8 +96,10 @@ pub async fn library_get_info(
     state: tauri::State<'_, crate::DatabaseState>,
     criteria: Option<crate::storage::query::Criteria>,
 ) -> crate::storage::Result<LibraryInfo> {
+    #[cfg(feature = "benchmarks")]
+    crate::startup_mark("metadata-request-entry");
     let _foreground = budget.enter();
-    async {
+    let result = async {
         let criteria = criteria.unwrap_or_default();
         let start = std::time::Instant::now();
         let (total, pool_wait_ms) = state.ready()?.query_count_timed(&criteria).await?;
@@ -112,8 +116,10 @@ pub async fn library_get_info(
             diagnostics: cfg!(any(debug_assertions, feature = "benchmarks")),
         })
     }
-    .await
-    .map_err(public_error)
+    .await;
+    #[cfg(feature = "benchmarks")]
+    crate::startup_mark("metadata-request-complete");
+    result.map_err(public_error)
 }
 
 #[tauri::command]
@@ -135,9 +141,16 @@ pub async fn library_query(
     request: crate::storage::query::QueryRequest,
 ) -> crate::storage::Result<crate::storage::LibraryWindow> {
     let _foreground = budget.enter();
-    async { state.ready()?.query_window(&request).await }
-        .await
-        .map_err(public_error)
+    async {
+        #[cfg(feature = "benchmarks")]
+        crate::startup_mark("window-request-entry");
+        let result = state.ready()?.query_window(&request).await;
+        #[cfg(feature = "benchmarks")]
+        crate::startup_mark("window-request-complete");
+        result
+    }
+    .await
+    .map_err(public_error)
 }
 
 #[cfg(feature = "benchmarks")]

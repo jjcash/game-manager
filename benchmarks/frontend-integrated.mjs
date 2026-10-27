@@ -182,10 +182,27 @@ try {
   await until(settled);
   await sleep(1100);
   report.initial = await snapshot();
+  const runtime = await (await fetch(`${endpoint}/json/version`)).json();
+  report.runtime = {
+    browser: runtime.Browser,
+    protocol: runtime["Protocol-Version"],
+    v8: runtime["V8-Version"],
+    userAgent: runtime["User-Agent"],
+  };
   report.timeOrigin = await evaluate("performance.timeOrigin");
   report.startup = await evaluate(
-    `(()=>{const m=JSON.parse(document.querySelector('[aria-label="Performance measurements"]').textContent);const b=document.querySelector('.library-scroll').getBoundingClientRect();return {shellCommit:performance.getEntriesByName('gm:shell-commit').map(e=>e.startTime),libraryInit:m.startedAt,firstUsable:m.startedAt+m.firstUsableMs,visibleThumbnailReady:Math.max(0,...Array.from(document.querySelectorAll('.game-row')).filter(e=>{const r=e.getBoundingClientRect(),i=e.querySelector('.thumbnail img');return r.bottom>b.top&&r.top<b.bottom&&i?.complete&&i.naturalWidth>0}).map(e=>Number(e.querySelector('.thumbnail')?.dataset.artworkReadyAt)||0)),navigation:performance.getEntriesByType('navigation').map(e=>e.toJSON()),viewport:[innerWidth,innerHeight,devicePixelRatio]}})()`,
+    `(()=>{const m=JSON.parse(document.querySelector('[aria-label="Performance measurements"]').textContent);const b=document.querySelector('.library-scroll').getBoundingClientRect();return {frontendEntry:performance.getEntriesByName('gm:frontend-entry').map(e=>e.startTime),shellCommit:performance.getEntriesByName('gm:shell-commit').map(e=>e.startTime),libraryInit:m.startedAt,firstUsable:m.startedAt+m.firstUsableMs,visibleThumbnailReady:Math.max(0,...Array.from(document.querySelectorAll('.game-row')).filter(e=>{const r=e.getBoundingClientRect(),i=e.querySelector('.thumbnail img');return r.bottom>b.top&&r.top<b.bottom&&i?.complete&&i.naturalWidth>0}).map(e=>Number(e.querySelector('.thumbnail')?.dataset.artworkReadyAt)||0)),navigation:performance.getEntriesByType('navigation').map(e=>e.toJSON()),viewport:[innerWidth,innerHeight,devicePixelRatio]}})()`,
   );
+  const clockBefore = Date.now();
+  const browserClock = await evaluate(
+    "({dateNow:Date.now(),timeOrigin:performance.timeOrigin,now:performance.now()})",
+  );
+  report.clockJoin = {
+    hostBefore: clockBefore,
+    browser: browserClock,
+    hostAfter: Date.now(),
+    note: "same-host UTC bridge observation after startup; transport bracket, not exact clock calibration",
+  };
   // Fix subsequent workload viewport; startup above uses the actual native window.
   await command("Emulation.setDeviceMetricsOverride", {
     width: 1120,
