@@ -19,6 +19,7 @@ const report = {
   timeOrigin: await evaluate(`performance.timeOrigin`),
   url: target.url,
   scenarios: [],
+  deepWindows: [],
 };
 const base = {
   search: "",
@@ -72,6 +73,25 @@ async function record(name, expected) {
   });
   return count;
 }
+async function measureFilteredWindows(name, count) {
+  // Observe loaded, visible rows; include automation/polling overhead and keep
+  // these DOM-arrival durations separate from criteria commits and SQL timers.
+  const samples = [];
+  for (let step = 0; step < 20; step++) {
+    const index = Math.floor((step * Math.max(0, count - 10)) / 19);
+    const started = await evaluate(
+      `(()=>{const started=performance.now();document.querySelector('.library-scroll').scrollTop=${index * 38};return started})()`,
+    );
+    await until(
+      `(()=>{const row=document.querySelector('.game-row[aria-rowindex="${index + 2}"][aria-busy="false"]');if(!row)return false;const r=row.getBoundingClientRect(),b=document.querySelector('.library-scroll').getBoundingClientRect();return r.bottom>b.top&&r.top<b.bottom})()`,
+    );
+    samples.push({
+      index,
+      observedLoadedMs: (await evaluate("performance.now()")) - started,
+    });
+  }
+  report.deepWindows.push({ name, count, samples, metrics: await snapshot() });
+}
 try {
   await until(ready);
   await evaluate(`document.querySelector('.diagnostics').open=true`);
@@ -117,6 +137,7 @@ try {
     installed: "installed",
     direction: "desc",
   });
+  await measureFilteredWindows("installedTitleDesc", installed);
   await evaluate(`document.querySelector('[role="grid"]').focus()`);
   await key("End", 35);
   await until(
@@ -129,6 +150,7 @@ try {
     installed: "notInstalled",
   });
   assert.equal(installed + absent, total);
+  await measureFilteredWindows("notInstalledTitleAsc", absent);
   await input("Installation filter", "all");
   await waitCriteria(base);
   const sourceId = await evaluate(

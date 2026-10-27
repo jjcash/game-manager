@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: **M0 is in progress: M0.1 through M0.6 and M0.7A complete within their verified scope; M0.1.1 CI awaits documented GitHub verification.** M0.7B/M0.7C and M1-M5 have not started. See [PROJECT_STATUS](PROJECT_STATUS.md) for measured limitations; the wider performance gate remains open.
+Status: **M0 is in progress: M0.1 through M0.6 and M0.7A/M0.7B complete within their verified scope; M0.1.1 CI awaits documented GitHub verification.** M0.7C and M1-M5 have not started. See [PROJECT_STATUS](PROJECT_STATUS.md) for measured limitations; the wider performance gate remains open.
 
 ## M0 — Performance-validation prototype
 
@@ -83,7 +83,7 @@ Complete within the synthetic prototype scope; see [M0.6 verification](developme
 
 All applicable local quality checks, 36 frontend/44 Rust tests (28 default), production/benchmark builds and normal-launch isolation passed. Forty primary conditions at 500/12,320/15,000/25,000 retain 3,200 metadata and 3,200 page samples, with worker/backoff repeats, matched no-thumbnail mixed work, existing native regression drivers, paired M0.5/M0.6 artifacts, memory cycles, renderer traces and graceful shutdown/restart. Cancellation/failure preserves exact valid partial counts, not false completion.
 
-The 150-ms filter/sort goal is not generally met, including some 15,000 cases; stress installed/not-installed/combined costs remain open. One worker reduces some query tails at slower artwork readiness; default stays two pending broader evidence. Reproduced long tasks are predominantly renderer Layout in focused traces, but the CSS trigger and unprofiled 235-ms outlier remain unknown. Memory is measured, not proven strictly bounded. HDD/lower-memory and long-session M0 gates remain open. M0.7A was subsequently authorized and is recorded below; M0.7B/M0.7C have not started. No real importer, commit or push is included.
+The 150-ms filter/sort goal is not generally met, including some 15,000 cases; stress installed/not-installed/combined costs remain open. One worker reduces some query tails at slower artwork readiness; default stays two pending broader evidence. Reproduced long tasks are predominantly renderer Layout in focused traces, but the CSS trigger and unprofiled 235-ms outlier remain unknown. Memory is measured, not proven strictly bounded. HDD/lower-memory and long-session M0 gates remain open. M0.7A and M0.7B were subsequently authorized and are recorded below; M0.7C has not started. No real importer, commit or push is included.
 
 ### M0.7A — Renderer layout profiling and optimization
 
@@ -98,7 +98,22 @@ Complete within this investigation scope; see [M0.7A verification](development/M
 
 Median largest Layout is 58.822 → 31.838 ms at 15,000 and 78.020 → 20.271 ms at 25,000. No long task was observed in the 12 final-candidate first-use conditions, while some frame p99, script/commit and later-scroll measurements remain higher. Bounds stay 26 mounted rows/six pages/one active library request. The 235-ms historical task, legacy 718-MiB aggregate point, existing header offset/focus contrast and broader M0 hardware/startup/long-session gate remain open. No SQL/index/migration, worker-default, integration, mod, cloud or mobile work is included.
 
-M0.7B query/latency work and M0.7C require separate authorization; neither starts automatically.
+M0.7B was subsequently authorized and is recorded below. M0.7C requires separate authorization.
+
+### M0.7B — SQLite query and latency optimization
+
+Complete within this investigation scope; see [M0.7B verification](development/M0.7B_VERIFICATION.md).
+
+- [x] Establish a clean merged M0.7A baseline and measure foreground SQL before changing query behavior.
+- [x] Capture actual bound SQL/plans and split count/page/ID selection/projection/acquisition; evaluate seven query shapes and two disposable covering-index candidates.
+- [x] Select present-entry sets with indexed canonical membership, using existing indexes and no migration/count cache/denormalization; preserve exact M0.4 semantics.
+- [x] Repeat 500/12,320/15,000/25,000 baseline/candidate SQL comparisons, including all sorts, complements, composed criteria and deep pages, with exact row/count checks and retained tails.
+- [x] Verify presence/membership writes, concurrent WAL snapshots, existing cancellation/generations, all local checks/builds and ordinary production isolation.
+- [x] Run native artwork/background controls, reverse-order repeats, direct filtered-window arrival probes, existing browsing/query scenarios, M0.7A font/layout controls and paired memory cycles; document mixed results.
+
+Installed SQL count+page p95 improves 110.67/132.80 → 53.35/53.31 ms at 15,000 and 215.79/194.86 → 67.43/70.42 ms at 25,000. Native two-artwork-worker installed IPC p95 improves 149.0 → 79.5 and 307.3 → 139.5 ms. Forty untraced load conditions, four focused trace/four memory controls, 144 query scenarios and 320 filtered-window arrivals preserve 26 rows/six pages/one library request. Some not-installed/deep/write-load paths regress; stress title-tail pages still exceed 50 ms and process memory grows during the sampled cycles. These results do not complete the wider M0 gate.
+
+M0.7C should separately address remaining deep-page/write-load variability, finer native arrival/presentation measurements and paired longer-session memory evidence. HDD/lower-memory and controlled startup remain open. No M0.7C, integration, mod, cloud/mobile work, commit or push is included.
 
 ## M1 — Library foundation
 

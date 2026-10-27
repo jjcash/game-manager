@@ -7,6 +7,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::{QueryBuilder, Sqlite};
 use std::time::Instant;
 
+#[cfg(feature = "benchmarks")]
+mod evaluation;
+
 #[derive(Debug, Default, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum InstallationFilter {
@@ -105,7 +108,12 @@ impl Criteria {
                 .push_bind(pattern)
                 .push(" ESCAPE '\\'");
         }
-        let present = "g.id IN (SELECT e.game_id FROM library_entries e WHERE EXISTS (SELECT 1 FROM game_installations i WHERE i.entry_id=e.id AND i.detection_state='present'))";
+        // Build present entry IDs once using the existing covering copy index,
+        // rather than probing it for every library entry. Both IDs are NOT NULL.
+        // IS TRUE keeps membership a test: SQLite can scan the canonical sort
+        // index instead of driving the page by game IDs and sorting all matches.
+        // See M0.7B's same-engine plans/measurements before changing this shape.
+        let present = "(g.id IN (SELECT e.game_id FROM library_entries e WHERE e.id IN (SELECT i.entry_id FROM game_installations i WHERE i.detection_state='present'))) IS TRUE";
         match self.installed {
             InstallationFilter::All => {}
             InstallationFilter::Installed => {
