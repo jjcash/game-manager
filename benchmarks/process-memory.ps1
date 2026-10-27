@@ -26,7 +26,8 @@ function Get-AppMemory([int]$RootId) {
         if (!$live) { continue }
         # Also reject replacement processes created between the two snapshots.
         if ([math]::Abs(($live.StartTime.ToUniversalTime() - $entry.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt 1) { continue }
-        $samples += [pscustomobject]@{ id=$live.Id; parentId=$entry.ParentProcessId; name=$live.ProcessName; startedUtc=$live.StartTime.ToUniversalTime().ToString('o'); privateBytes=$live.PrivateMemorySize64; workingSetBytes=$live.WorkingSet64 }
+        $role=if($entry.CommandLine -match '--type=([^ "\s]+)'){$Matches[1]}elseif($entry.ProcessId -eq $RootId){'native'}else{'browser'}
+        $samples += [pscustomobject]@{ id=$live.Id; parentId=$entry.ParentProcessId; name=$live.ProcessName; role=$role; startedUtc=$live.StartTime.ToUniversalTime().ToString('o'); privateBytes=$live.PrivateMemorySize64; workingSetBytes=$live.WorkingSet64 }
     }
     $native = $samples | Where-Object id -eq $RootId
     if (!$native) { throw 'Native root exited or changed during memory capture.' }

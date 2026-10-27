@@ -1,4 +1,75 @@
-# Synthetic SQLite benchmarks
+# Synthetic performance benchmarks
+
+## M0.7C integrated validation
+
+See [M0.7C verification](../docs/development/M0.7C_VERIFICATION.md) for retained artifacts/hashes, complete results, failed observations and the overall M0 gate assessment. Existing M0.2–M0.7B procedures/evidence below remain unchanged. Build and finish checks before timed collection; run one native driver at a time, with no competing builds/tests. Always choose new result/fixture roots.
+
+The existing background runner now accepts an independent integrated driver:
+
+```powershell
+$db = 'E:\dev\game-manager\benchmarks\data\m0.2-2026-10-25-01'
+$art = 'E:\dev\game-manager\benchmarks\data'
+$exe = 'E:\dev\game-manager\benchmarks\results\m0.7c-candidate\game-manager.exe'
+
+# Fine browser-local arrival + sequential first/deep native probes.
+./benchmarks/background.ps1 -DatabaseDirectory $db -ArtworkDirectory $art `
+  -ResultsDirectory E:\dev\game-manager\benchmarks\results\m0.7c-deep-example `
+  -BenchmarkExecutable $exe -Sizes @(15000,25000) `
+  -Cases @('idle','art2','write','mixed2') -Iterations 30 `
+  -IntegratedScenario deep -RecoverySeconds 0
+
+# Independent sustained workload, with a subsequent ordinary idle interval.
+./benchmarks/background.ps1 -DatabaseDirectory $db -ArtworkDirectory $art `
+  -ResultsDirectory E:\dev\game-manager\benchmarks\results\m0.7c-memory-example `
+  -BenchmarkExecutable $exe -Sizes 15000 -Cases art2 -Iterations 5 `
+  -IntegratedScenario combined -SustainedCycles 150 `
+  -RecoverySeconds 60 -SampleMemory
+
+# Process-start boundaries, actual native window and reused-profile warm repeats.
+./benchmarks/background.ps1 -DatabaseDirectory $db -ArtworkDirectory $art `
+  -ResultsDirectory E:\dev\game-manager\benchmarks\results\m0.7c-startup-example `
+  -BenchmarkExecutable $exe -Sizes @(500,12320,15000,25000) `
+  -Cases @('idle','art2') -Iterations 5 -IntegratedScenario startup `
+  -ReadOnlyLibrary -Launches 5 -RecoverySeconds 0
+```
+
+`-IntegratedScenario` selects `deep`, `thumbnails`, `idle`, `scroll`, `transitions`, `artwork`, `artwork-saturation`, `complete`, `cancel`, `combined` or `startup`. Default sustained length is 60 cycles (allowed 1–300), default recovery 60 seconds (0–600). Use zero workers (`-Cases idle`) for isolated idle/scroll/transitions/completion/cancellation; use `art2` for artwork or combined browsing. Workload names are explicit: combined/completion use gentle 4,096-record mixed jobs, cancellation repeatedly starts/cancels active slow hashing, scrolling/artwork/combined visit 20 distributed settled rows/windows per cycle, transitions exercise search/presence/release sorting and Reset all. Every cycle has a one-second minimum including work/telemetry. `idle` with 300 cycles therefore supplies at least five minutes before recovery. These are new separated workloads, not substitutes for the older background driver's five-cycle evidence. Non-memory scenarios ignore `SustainedCycles`.
+
+`scroll`/`artwork` rotate the same 20 evenly spaced windows and are reuse controls. In M0.7C, that artwork control reached only 73 native assets and did **not** cause eviction; it is retained, not called saturation. `artwork-saturation` and `combined` use varying positions `((cycle * 20 + step) * 7919) % (total - 10)` and assert actual evictions plus full 128-entry/256-file caches. The combined window sequence was corrected before collecting either artifact's combined runs. Preserve the unsuccessful fixed-window pressure attempt separately; do not pool different patterns as equivalent workloads.
+
+`thumbnails` visits 40 distributed windows and records actual visible-image readiness timestamps, terminal placeholder statuses and job duty during optional saturated CPU/hash/write/mixed work. Compare `art1`, `art2`, `mixed0`, `mixed1`, `mixed2`, `priority` in both orders. Job restart checks keep work requested during each visit; measured duty still determines whether it was active. Readiness may precede the later polling observation. This supplemental probe is separate from the unchanged primary fairness workload, whose initial-thumbnail timer precedes job start.
+
+The deep driver retains sequential metadata/page IPC and backend/pool samples for all/installed/not-installed first/tail pages, reversing offset order each round. It then observes 40 distributed windows/filter with an in-page MutationObserver. Expected generation, complete requested-window readiness, loaded target row and viewport intersection are required; a bounded native query checks the canonical ID after timing. Full-window DOM readiness, next/second rAF opportunities and a 50-ms timer quantization control are separate fields. The historical coarse probe waited only for the target row; do not conflate these endpoints. The timer control excludes CDP round trips and does not recreate historical coarse-polling results. Artwork-enabled UI visits exercise ordinary visible thumbnails; use the original ten-case background driver for continuous-artwork saturation/fairness. Neither rAF nor DOM readiness measures actual browser/compositor presentation.
+
+`-CaptureIpc` adds a passive CDP Network timeline for local POSTs to `library_get_info`/`library_query`, with offsets, request/completion times and backend fields read from bounded response buffers. Tauri's invoke is immutable and is never replaced; command permissions/headers/production code are unchanged. No headers or complete response bodies are retained. This **protocol interval** excludes caller registration, possible preflight and JS parsing/callback delivery; full invoke durations remain separate direct probes. Buffers cap at 4 MiB total/512 KiB per response, with 2,048 retained events/readbacks and explicit missing-body/failure markers. It also records earlier first-target-row arrival independently of full-window readiness, with matching canonical IDs. Use separate instrumented output directories rather than pooling these samples with primary latency results. Per-window intersections distinguish sequential page protocol requests from the residual before/after them; they do not turn that residual into measured React CPU time. Geometry reads can force layout. Integrated scenarios reject the original driver's trace/shutdown switches; run those controls separately.
+
+The separate `layout.ps1 -FontAudit -NoArtwork -Untraced -Repetitions 1` control records actual resolved title and placeholder faces through CDP after its timed transitions/scrolling finish. Supply the retained baseline/candidate `-Executables`, both release/stress sizes and a new results directory. No-artwork rendering ensures the placeholder glyph exists; the audit does not alter production CSS or required fonts. This is a font/geometry regression check, not a first-use Layout measurement.
+
+Integrated reports preserve browser used/allocated heap (`totalSize`, not OS commit), DOM counters, bounded frontend queues, native cache/eviction/decode stats and job/admission snapshots. Append-only `.samples.jsonl` retains partial evidence on failure; `.memory-series.json` holds periodic complete age-validated process trees, with per-PID native/browser/renderer/GPU/utility roles. Process private bytes, working sets, JS heap and configured SQLite caches are different measures. Keep sampled memory runs separate from primary latency runs. A finite plateau or idle retention does not prove leak freedom. Existing benchmark observers/diagnostics mean the idle scenario is not an idle CPU/polling certification.
+
+The final integrated driver installs its row observer once and passes target indices/criteria as data through `Runtime.callFunctionOn`, releasing its single remote global-object handle at exit. This avoids injecting a distinct full observer source string for every varied target. Early M0.7C fixed-window controls and primary deep captures used per-evaluation injection and remain identified in the verification report; do not use a transport change as evidence of an application memory improvement. All paired combined/historical/timeline controls use matching instrumentation within each comparison.
+
+Startup uses native process creation, a bracketed `IsWindowVisible` observation, opt-in benchmark stderr timestamps (`GAME_MANAGER_STARTUP_TIMING`), shell commit, Library initialization/usable rows and visible thumbnail timestamps. `-ReadOnlyLibrary` is startup-only and disables the synthetic scheduler while opening the canonical fixture read-only. Launch one uses a fresh profile; later launches reuse it. All retain OS caches. The window sampler refreshes its cached handle before normal shutdown. No user data is cleared; no OS-cold or GPU-presentation claim is made.
+
+For resource fairness, retain the original ten cases and repeat a second run with reversed `-Cases` order at both release/stress sizes. Compare IPC p50/p95/max/sample counts, initial/remounted thumbnail readiness, completed saturated-job throughput, active duty, worker waits/backoffs and memory. Use matching seed/storage/viewport/artifact and separate trace/memory runs. Worker defaults stay two/unthrottled unless controlled tradeoffs justify a separate change.
+
+`-FixtureDirectory` selects a **new absolute disposable base**, placing generated job databases, copied synthetic originals, derived cache and profiles there. The runner still checks the canonical database supplied through `-DatabaseDirectory`; job-enabled runs query the generated writable fixture. Same-volume originals are hardlinked; cross-volume originals are copied, never written. A real HDD test must identify the physical drive and put actual fixtures there; an artificial delay is not an HDD. For read-only startup, supply canonical fixture copies on the drive being measured. Results can remain under this checkout's ignored `benchmarks/results/`. Explicit external fixture roots are not protected by this repository's Git ignore rules and must never be copied into tracked source or game installations.
+
+`benchmarks/disk-load.ps1 -Root ABSOLUTE_NEW_BENCHMARKS_DATA_DISK_ROOT` creates one owned bounded file with write-through synthetic I/O. The root must be a new local `benchmarks/data/disk-NAME` path with no reparse ancestors. Defaults are 256 MiB maximum file length and 180 seconds; it overwrites only its own newly created payload. Creating `stop.request` inside that exact owned root requests a cooperative stop. Capture its JSON byte count/start/end/duration, verify overlap with the measured application phase, and preserve partial files/errors on failure. It never scans or deletes files. Use it only for an explicitly identified disposable disk-contention experiment, separate from ordinary storage controls.
+
+Controlled SQL relationship distributions can be created without changing the reference seed:
+
+```powershell
+python benchmarks/distributions.py `
+  E:\dev\game-manager\benchmarks\data\m0.2-2026-10-25-01\synthetic-v1-seed-42-15000.sqlite3 `
+  E:\dev\game-manager\benchmarks\results\distribution-example\benchmarks\data\sparse.sqlite3 sparse
+```
+
+Variants are `sparse` (10% installed, one copy/canonical game), `dense` (90%) and `fanout` (six extra memberships/canonical game, four copies/new membership). The script refuses existing outputs/sidecars, requires complete benchmark input, uses SQLite backup, validates integrity/FKs and rechecks the source hash. A sidecar manifest identifies each derivative; its retained generator metadata does not make it the unchanged generator-v1 reference distribution. Run `library-bench query-diagnose --database ABSOLUTE_DERIVATIVE --iterations 10 --strategies finalists` with bundled SQLx SQLite; Python is used only for fixture creation. Exact count/full-summary equivalence remains mandatory. These distributions do not validate mostly unique artwork, every title script, real import behavior or arbitrary future provider cardinalities.
+
+After collection, run `node --test benchmarks/arrival.test.mjs benchmarks/ipc-recorder.test.mjs benchmarks/layout.test.mjs` and `./benchmarks/process-memory.test.ps1`, in addition to the documented project checks/builds and ordinary production-isolation smoke. Lower-RAM hardware, physical scaling, OS-cold storage and actual presentation stay unverified unless explicitly measured; future procedures are in the verification report.
+
+## Original M0.2 database baseline
 
 M0.5 also provides bounded synthetic artwork benchmarks. See the [M0.5 verification report](../docs/development/M0.5_VERIFICATION.md) for fixture generation/cleanup, cache ownership, limits, exact commands and measured results. The M0.2 instructions below remain the database-only baseline.
 

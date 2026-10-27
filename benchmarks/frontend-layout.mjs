@@ -233,6 +233,37 @@ try {
       );
     }
   }
+  if (flags.includes("--font-audit")) {
+    // Explicit supplemental audit after every timed transition/scroll phase.
+    // Use -NoArtwork so the placeholder glyph is actually rendered.
+    await input("Sort games", "releaseDate:desc");
+    await criteria(sorted);
+    await evaluate(
+      `document.querySelector('.library-scroll').scrollTop=0;document.querySelector('.library-scroll').scrollIntoView({block:'center'})`,
+    );
+    await until(
+      `document.querySelector('.game-row[aria-rowindex="2"][aria-busy="false"]')`,
+    );
+    await until(settled);
+    await evaluate(
+      `(()=>{const title=Array.from(document.querySelectorAll('.game-title')).find(e=>e.textContent.includes(String.fromCodePoint(0x661f)));if(!title)throw new Error('Expected visible Japanese title');title.dataset.gmFontAudit='title';const placeholder=document.querySelector('.thumbnail span');if(!placeholder)throw new Error('Use NoArtwork for a rendered placeholder');placeholder.dataset.gmFontAudit='placeholder';title.getBoundingClientRect();placeholder.getBoundingClientRect()})()`,
+    );
+    await sleep(100);
+    const { root } = await command("DOM.getDocument");
+    report.fontAudit = {};
+    for (const label of ["title", "placeholder"]) {
+      const { nodeId } = await command("DOM.querySelector", {
+        nodeId: root.nodeId,
+        selector: `[data-gm-font-audit="${label}"]`,
+      });
+      assert(nodeId);
+      report.fontAudit[label] = await command("CSS.getPlatformFontsForNode", {
+        nodeId,
+      });
+      assert(report.fontAudit[label].fonts.length > 0);
+    }
+    await writeFile(output, JSON.stringify(report, null, 2));
+  }
   const screenshot = await command("Page.captureScreenshot", { format: "png" });
   await writeFile(`${output}.png`, Buffer.from(screenshot.data, "base64"));
 } finally {

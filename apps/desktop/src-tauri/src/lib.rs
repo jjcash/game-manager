@@ -16,6 +16,24 @@ pub struct ArtworkState(Option<Arc<artwork::Service>>);
 use std::sync::Arc;
 use tauri::Manager;
 
+// Opt-in benchmark timestamps share UTC with the external process-creation
+// sampler. Publication means initialization settled; callers must still check
+// the result. This is neither process creation nor a visible/presented frame.
+#[cfg(feature = "benchmarks")]
+fn startup_mark(stage: &str) {
+    if std::env::var_os("GAME_MANAGER_STARTUP_TIMING").is_some() {
+        let epoch_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock after epoch")
+            .as_secs_f64()
+            * 1000.0;
+        eprintln!(
+            "{}",
+            serde_json::json!({"startupStage":stage,"epochMs":epoch_ms})
+        );
+    }
+}
+
 #[derive(Default)]
 pub struct DatabaseState {
     database: Arc<tokio::sync::OnceCell<storage::Result<storage::Database>>>,
@@ -41,6 +59,8 @@ impl DatabaseState {
 }
 
 pub fn run() {
+    #[cfg(feature = "benchmarks")]
+    startup_mark("run-entry");
     let builder = tauri::Builder::default().setup(|app| {
         #[cfg(feature = "benchmarks")]
         let job_root =
@@ -140,6 +160,8 @@ pub fn run() {
                     Err(error) => Err(error),
                 };
                 let _ = ready.set(result);
+                #[cfg(feature = "benchmarks")]
+                startup_mark("backend-published");
                 return;
             }
             let result = if let Some(path) = benchmark_path {
@@ -176,6 +198,8 @@ pub fn run() {
                 );
             }
             let _ = ready.set(result);
+            #[cfg(feature = "benchmarks")]
+            startup_mark("backend-published");
         });
         Ok(())
     });
