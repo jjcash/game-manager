@@ -8,7 +8,8 @@ param(
     [string]$Variants = 'baseline',
     [switch]$ClosedDiagnostics,
     [switch]$NoArtwork,
-    [switch]$Untraced
+    [switch]$Untraced,
+    [switch]$FontAudit
 )
 $ErrorActionPreference='Stop'
 if(Get-Process game-manager -ErrorAction SilentlyContinue){throw 'Close Game Manager first.'}
@@ -43,6 +44,7 @@ try {
                 $arguments=@("$PSScriptRoot/frontend-layout.mjs",'http://127.0.0.1:9223',"$prefix.json","--repetitions=$Repetitions","--variants=$Variants")
                 if($ClosedDiagnostics){$arguments+='--closed-diagnostics'}
                 if($Untraced){$arguments+='--untraced'}
+                if($FontAudit){$arguments+='--font-audit'}
                 & node @arguments | Tee-Object -FilePath "$prefix.stdout.txt"
                 if($LASTEXITCODE -ne 0){throw "Layout driver failed: $prefix"}
                 Get-AppMemory $appProcess.Id | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$prefix.memory.json"

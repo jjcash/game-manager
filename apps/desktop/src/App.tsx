@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { BackendStatus } from "./components/BackendStatus";
 import { Icon } from "./components/Icon";
 import "./App.css";
@@ -30,6 +30,9 @@ const sections = {
 export type Section = keyof typeof sections;
 
 export default function App() {
+  useLayoutEffect(() => {
+    performance.mark("gm:shell-commit");
+  }, []);
   const [activeSection, setActiveSection] = useState<Section>("Library");
   const section = sections[activeSection];
 

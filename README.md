@@ -111,7 +111,7 @@ docs/                  Requirements, accepted decisions, roadmap, actual status
 
 Rust owns backend logic and SQLite. React receives a validated `{ appName, version, backend }` status through the unchanged `app_get_status` command; a shared fixture is checked by Rust and TypeScript tests. The local main window can also call narrow, read-only `database_get_status` and `library_get_page` commands. There is no generic SQL, filesystem, shell, opener, or remote-origin permission. Release CSP allows local assets and IPC; development CSP additionally permits Vite reload.
 
-Virtualization, imports, search/filtering, launching games, mod operations, integrations, jobs, cloud/mobile/Game Tools, and installer delivery remain unimplemented. M0 as a whole remains incomplete. M0.3 requires separate authorization.
+The virtualized Details View, search/filter/sort, bounded synthetic artwork and benchmark-only jobs are implemented within M0. Real imports, launching games, mod operations, storefront integrations, cloud/mobile/Game Tools and installer delivery remain unimplemented. The wider M0 performance gate remains open.
 
 ## SQLite setup and synthetic benchmarks
 
@@ -123,7 +123,7 @@ pnpm --dir apps/desktop desktop:dev
 Remove-Item Env:GAME_MANAGER_DATA_DIR
 ```
 
-Without that override, the application creates an empty persistent library. It never seeds it. Foreign keys are enabled per connection, with a four-connection maximum, WAL, FULL synchronous durability, five-second busy timeout, and versioned/checksummed migrations. Initialization errors preserve the file and expose structured failure status; `app_get_status` remains a backend probe independently of database readiness. The current shell does not display database state; new commands are ready for the next library milestone. Startup diagnostics are written as local JSON errors, and IPC error messages omit private path/SQL details.
+Without that override, the application creates an empty persistent library. It never seeds it. Foreign keys are enabled per connection, with a four-connection maximum, WAL, FULL synchronous durability, five-second busy timeout, and versioned/checksummed migrations. Initialization errors preserve the file and expose structured failure status; `app_get_status` remains a backend probe independently of database readiness. The current Library view displays database readiness and structured errors while preserving the independent backend probe. Startup diagnostics are written as local JSON errors, and IPC error messages omit private path/SQL details.
 
 From the repository root, create all six synthetic sizes in a **new**, explicitly configured benchmark directory:
 
@@ -180,7 +180,7 @@ Artwork uses a separate two-job Rust service and two-request frontend scheduler;
 
 Both result caches retain at most 128 entries; the frontend queue is capped at 32 jobs and derived disk storage at 256 files/4 MiB. Only explicit benchmark builds honor `GAME_MANAGER_BENCHMARK_ARTWORK`. Normal startup generates neither artwork nor library records. Sources, derived thumbnails and temporary writes are separate. See the [M0.5 report](docs/development/M0.5_VERIFICATION.md) for source/decode caps, invalidation, security tests, repeatable commands and limitations.
 
-`benchmarks/frontend.ps1 -ArtworkDirectory E:\dev\game-manager\benchmarks\data -ArtworkScenarios ...` adds slow/rapid scrolling, repeated distant windows, visible-image checks, native cache/concurrency counters and process-memory time series, then repeats the M0.4 search/filter/sort matrix under artwork load. `library-bench query-measure --artwork ABSOLUTE_FIXTURE_ROOT ...` measures the unchanged SQL scenarios while two synthetic-artwork workers run. Fixture CLI generation and cleanup require an explicit disposable `benchmarks/data/artwork-NAME` root. No generated image or benchmark output belongs in Git. M0.6 requires separate authorization.
+`benchmarks/frontend.ps1 -ArtworkDirectory E:\dev\game-manager\benchmarks\data -ArtworkScenarios ...` adds slow/rapid scrolling, repeated distant windows, visible-image checks, native cache/concurrency counters and process-memory time series, then repeats the M0.4 search/filter/sort matrix under artwork load. `library-bench query-measure --artwork ABSOLUTE_FIXTURE_ROOT ...` measures the unchanged SQL scenarios while two synthetic-artwork workers run. Fixture CLI generation and cleanup require an explicit disposable `benchmarks/data/artwork-NAME` root. No generated image or benchmark output belongs in Git. The subsequently completed M0.6?M0.7C investigations and remaining gates are recorded below.
 
 ## Synthetic background-load experiments
 
@@ -190,8 +190,14 @@ See [M0.6 verification](docs/development/M0.6_VERIFICATION.md) for exact archite
 
 ## Renderer layout profiling (M0.7A)
 
-The focused sort benchmark now supports retained artifact selection, repeated transitions and temporary CSS/font experiments. First-use and warm transitions must be reported separately: visiting the title-sorted tail first can warm Japanese font fallback and mask the reproduced stall. Game titles name optional local Noto Sans JP before generic fallbacks, preserving the observed title face without bundling or downloading a font; interface and placeholder fonts retain their existing stack. See [M0.7A verification](docs/development/M0.7A_VERIFICATION.md) for evidence, comparisons and remaining limitations, and [renderer benchmark commands](benchmarks/README.md#m07a-renderer-layout-investigation). M0.7B's separately authorized SQL investigation is recorded below; M0.7C requires separate authorization.
+The focused sort benchmark now supports retained artifact selection, repeated transitions and temporary CSS/font experiments. First-use and warm transitions must be reported separately: visiting the title-sorted tail first can warm Japanese font fallback and mask the reproduced stall. Game titles name optional local Noto Sans JP before generic fallbacks, preserving the observed title face without bundling or downloading a font; interface and placeholder fonts retain their existing stack. See [M0.7A verification](docs/development/M0.7A_VERIFICATION.md) for evidence, comparisons and remaining limitations, and [renderer benchmark commands](benchmarks/README.md#m07a-renderer-layout-investigation). M0.7B and M0.7C investigations are recorded below; later engineering work requires separate authorization.
 
 ## SQLite latency investigation (M0.7B)
 
 Measured present-entry sets reduce broad installed counts and filter latency without changing schema, search semantics, artwork or worker defaults. Alternating SQL/native comparisons retain improvements and regressions: stress deep-page retrieval still exceeds the provisional 50-ms goal, some not-installed/write-load paths are slower, and paired memory cycles do not establish stable process memory. See [M0.7B verification](docs/development/M0.7B_VERIFICATION.md) for plans, p50/p95/outliers, correctness checks, native regressions and the M0.7C recommendation. The wider M0 gate remains open; no commit/push or next milestone is performed automatically.
+
+## Integrated performance validation (M0.7C)
+
+The [M0.7C verification report](docs/development/M0.7C_VERIFICATION.md) consolidates deep-page SQL/IPC/row-arrival timing, reversed resource-fairness controls, 100–150-cycle memory workloads with idle recovery, whole-process startup, actual HDD/contended-disk tests and font/native regressions. [Benchmark procedures](benchmarks/README.md#m07c-integrated-validation) describe the new independent drivers and timing limits. Historical reports, seed-42 reference fixtures and retained artifact hashes are preserved.
+
+The investigation is complete within its tested synthetic scope; **M0 remains open**. Deep-page/load tails, relation-heavy fixtures and warm startup miss provisional targets. Captured mixed memory stabilizes late and substantially recovers at idle, without proving leak freedom. Lower-RAM hardware, other physical scaling, OS-cold storage and actual displayed-frame performance remain unverified. M0.7B queries, optional title fonts, two artwork workers and default admission are retained. No real importer or later milestone is started.
