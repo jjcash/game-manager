@@ -13,7 +13,7 @@ import sqlite3
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("source", type=Path)
 parser.add_argument("output", type=Path)
-parser.add_argument("variant", choices=["sparse", "dense", "fanout"])
+parser.add_argument("variant", choices=["sparse", "dense", "fanout", "overlap", "copies"])
 args = parser.parse_args()
 source, output = args.source.resolve(strict=True), args.output.absolute()
 if not args.source.is_absolute() or not args.output.is_absolute():
@@ -38,7 +38,7 @@ with sqlite3.connect(source.as_uri() + "?mode=ro", uri=True) as original:
             db.execute("DELETE FROM game_installations")
             selected = [(g, db.execute("SELECT id FROM library_entries WHERE game_id=? ORDER BY id LIMIT 1", (g,)).fetchone()[0]) for i, g in enumerate(games) if (i % 10 == 0 if args.variant == "sparse" else i % 10 != 0)]
             db.executemany("INSERT INTO game_installations(id,entry_id,root_path_ref,platform,detection_state) VALUES(?,?,?,'synthetic','present')", [("distribution-copy-" + g, e, "synthetic://distribution/" + g) for g, e in selected])
-        else:
+        elif args.variant == "fanout":
             # Six extra memberships and four copies per new entry. Existing
             # canonical titles/search and original entry/copy state are retained.
             for n in range(6):
@@ -47,6 +47,15 @@ with sqlite3.connect(source.as_uri() + "?mode=ro", uri=True) as original:
                 db.executemany("INSERT INTO library_entries(id,game_id,source_id,added_at_ms) VALUES(?,?,?,0)", [(f"distribution-entry-{n}-{g}", g, sid) for g in games])
                 for copy in range(4):
                     db.executemany("INSERT INTO game_installations(id,entry_id,root_path_ref,platform,detection_state) VALUES(?,?,?,'synthetic',?)", [(f"distribution-copy-{n}-{copy}-{g}", f"distribution-entry-{n}-{g}", f"synthetic://distribution/{n}/{copy}/{g}", "present" if i % 10 else "missing") for i, g in enumerate(games)])
+        else:
+            # A localized multi-store/multi-version hypothesis, not measured
+            # prevalence. Hold memberships and presence fixed to isolate copies.
+            selected = [g for i, g in enumerate(games) if i % 5 == 1]
+            sid = "intermediate-source"
+            db.execute("INSERT INTO library_sources VALUES(?, 'synthetic', ?)", (sid, sid))
+            db.executemany("INSERT INTO library_entries(id,game_id,source_id,added_at_ms) VALUES(?,?,?,0)", [("intermediate-entry-" + g, g, sid) for g in selected])
+            for copy in range(1 if args.variant == "overlap" else 4):
+                db.executemany("INSERT INTO game_installations(id,entry_id,root_path_ref,platform,detection_state) VALUES(?,?,?,'synthetic','present')", [(f"intermediate-copy-{copy}-{g}", "intermediate-entry-" + g, f"synthetic://intermediate/{copy}/{g}") for g in selected])
         assert db.execute("PRAGMA integrity_check").fetchone() == ("ok",)
         assert not db.execute("PRAGMA foreign_key_check").fetchall()
         counts = {table: db.execute(f"SELECT count(*) FROM {table}").fetchone()[0] for table in ("games", "library_entries", "game_installations", "library_sources")}

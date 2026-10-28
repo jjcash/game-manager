@@ -1,5 +1,36 @@
 # Synthetic performance benchmarks
 
+## M0.7E relationship and deep-page investigation
+
+See [M0.7E verification](../docs/development/M0.7E_VERIFICATION.md) for the cost/benefit decision, dataset relevance and separate SQL/native boundaries. Finish builds/tests/fixture generation before collection. Use retained optimized binaries and new result roots; keep OS caches and ordinary desktop activity explicit.
+
+The completed investigation recommends **retaining M0.7B production queries and accepting the documented query limitation**. Ordinary 15,000-game gains are modest or inconsistent; intermediate/extreme gains come with sparse/native regressions. No production index, schema, cache or default changes are selected. The wider M0 gate remains open, including one preserved synthetic writer-acquisition guard failure followed by a successful unchanged-setting repeat.
+
+`query-diagnose --strategies relationships` retains the 34 existing cases and adds eight source/presence/title/release first/deep cases. It compares historical pre-M0.7B SQL, current ordered entry sets, current counts with historical ordered page membership (`PageMembership`), and current counts with correlated page existence (`PageCorrelated`). All are benchmark-only CLI experiments, with exact count/full-summary/split-projection assertions, actual SQL/plans, raw samples and alternating strategy order. Existing `all`/`finalists` options are unchanged.
+
+```powershell
+$reference = 'E:\dev\game-manager\benchmarks\data\m0.2-2026-10-25-01'
+$fixtures = 'E:\dev\game-manager\benchmarks\results\relationship-fixtures\benchmarks\data'
+$cli = 'E:\dev\game-manager\apps\desktop\src-tauri\target\release\library-bench.exe'
+python -B benchmarks/distributions.py "$reference\synthetic-v1-seed-42-15000.sqlite3" "$fixtures\overlap.sqlite3" overlap
+python -B benchmarks/distributions.py "$reference\synthetic-v1-seed-42-15000.sqlite3" "$fixtures\copies.sqlite3" copies
+python -B benchmarks/relationships.py --executable $cli `
+  --results E:\dev\game-manager\benchmarks\results\relationships-new `
+  --iterations 10 --passes 2 `
+  --database "reference-15000=$reference\synthetic-v1-seed-42-15000.sqlite3" `
+  --database "overlap=$fixtures\overlap.sqlite3" `
+  --database "copies=$fixtures\copies.sqlite3"
+python -B benchmarks/summarize-relationships.py benchmarks/results/relationships-new |
+  Set-Content -Encoding utf8 benchmarks/results/relationships-new-summary.json
+python -B benchmarks/relationships.test.py
+```
+
+Add reference 25,000 and the preserved sparse/dense/15,000-fanout paths as additional `--database label=ABSOLUTE_PATH` arguments for the seven-dataset matrix. Labels must be unique lowercase letters/digits/hyphens/underscores. The runner records input/binary hashes, sizes, Git revision, SQLite version, completed files and configuration; dataset order reverses each pass. The summarizer pools **raw** samples with nearest-rank p50/p95/max/n and signed absolute/percentage savings from current production, retaining each pass separately. Split selection/projection are additional statements, never additive components of full-page timing. At ten samples p95 equals maximum; finite repeated-process observations do not establish rare-tail guarantees.
+
+New `overlap`/`copies` fixtures add one membership on 20% of canonical games, with one/four copies respectively. Their membership/presence sets match; only copy cardinality changes. These are bounded synthetic hypotheses, not measured usage prevalence. Original reference and sparse/dense/fanout recipes remain unchanged. Covering-index experiments belong only in new SQLite backup copies; never apply experimental DDL to source fixtures or application databases.
+
+For native first/deep service, IPC and target/full-window arrival, use the established `background.ps1 -IntegratedScenario deep -CaptureIpc -RecoverySeconds 0` with `idle,art2,write,mixed2`, 15,000/25,000 and reversed artifact/case order. Protocol instrumentation is explicit overhead; browser-local DOM readiness/rAF are not compositor presentation. Keep ordinary browsing/query/artwork/job regression drivers and normal-build isolation separate. No startup profiling is required by this milestone.
+
 ## M0.7D whole-process startup investigation
 
 See [M0.7D verification](../docs/development/M0.7D_VERIFICATION.md) for phase definitions, paired controls, failures and limitations. Retain the original M0.7C executable; use an optimized benchmark build for added native milestones. The ordinary configured-window path remains the low-overhead timing path:
@@ -92,7 +123,7 @@ python benchmarks/distributions.py `
   E:\dev\game-manager\benchmarks\results\distribution-example\benchmarks\data\sparse.sqlite3 sparse
 ```
 
-Variants are `sparse` (10% installed, one copy/canonical game), `dense` (90%) and `fanout` (six extra memberships/canonical game, four copies/new membership). The script refuses existing outputs/sidecars, requires complete benchmark input, uses SQLite backup, validates integrity/FKs and rechecks the source hash. A sidecar manifest identifies each derivative; its retained generator metadata does not make it the unchanged generator-v1 reference distribution. Run `library-bench query-diagnose --database ABSOLUTE_DERIVATIVE --iterations 10 --strategies finalists` with bundled SQLx SQLite; Python is used only for fixture creation. Exact count/full-summary equivalence remains mandatory. These distributions do not validate mostly unique artwork, every title script, real import behavior or arbitrary future provider cardinalities.
+Original variants are `sparse` (10% installed, one copy/canonical game), `dense` (90%) and `fanout` (six extra memberships/canonical game, four copies/new membership). M0.7E adds `overlap`/`copies` as described above. The script refuses existing outputs/sidecars, requires complete benchmark input, uses SQLite backup, validates integrity/FKs and rechecks the source hash. A sidecar manifest identifies each derivative; its retained generator metadata does not make it the unchanged generator-v1 reference distribution. Run `library-bench query-diagnose --database ABSOLUTE_DERIVATIVE --iterations 10 --strategies finalists` with bundled SQLx SQLite; Python is used only for fixture creation. Exact count/full-summary equivalence remains mandatory. These distributions do not validate mostly unique artwork, every title script, real import behavior or arbitrary future provider cardinalities.
 
 After collection, run `node --test benchmarks/arrival.test.mjs benchmarks/ipc-recorder.test.mjs benchmarks/layout.test.mjs` and `./benchmarks/process-memory.test.ps1`, in addition to the documented project checks/builds and ordinary production-isolation smoke. Lower-RAM hardware, physical scaling, OS-cold storage and actual presentation stay unverified unless explicitly measured; future procedures are in the verification report.
 

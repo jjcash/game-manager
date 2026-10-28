@@ -7,7 +7,7 @@ param(
     [ValidateRange(1,10000)][int]$Iterations=50,
     [ValidateRange(1,10)][int]$Passes=2,
     [switch]$Diagnose,
-    [ValidateSet('all','finalists')][string]$Strategies='all'
+    [ValidateSet('all','finalists','relationships')][string]$Strategies='all'
 )
 $ErrorActionPreference='Stop'
 $root=[IO.Path]::GetFullPath($ResultsDirectory)
