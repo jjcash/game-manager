@@ -452,3 +452,44 @@ async fn diagnostic_strategies_and_split_projection_preserve_fixture_rows() {
     assert!(db.diagnose_queries(0, false).await.is_err());
     db.close().await;
 }
+
+#[cfg(feature = "benchmarks")]
+#[tokio::test]
+async fn relationship_candidates_keep_global_summaries_across_presence_changes() {
+    let (dir, db) = fixture().await;
+    let mut writer = SqliteConnection::connect_with(
+        &SqliteConnectOptions::new()
+            .filename(dir.path().join("query.sqlite3"))
+            .foreign_keys(true),
+    )
+    .await
+    .unwrap();
+    sqlx::raw_sql("INSERT INTO game_installations VALUES ('i3','a2','synthetic://duplicate','windows',NULL,'present'),('i4','b1','synthetic://b','windows',NULL,'missing');")
+        .execute(&mut writer).await.unwrap();
+    for state in ["missing", "present"] {
+        sqlx::query("UPDATE game_installations SET detection_state=? WHERE entry_id='a2'")
+            .bind(state)
+            .execute(&mut writer)
+            .await
+            .unwrap();
+        let report = db.diagnose_relationship_queries(2).await.unwrap();
+        let cases = report["scenarios"].as_array().unwrap();
+        assert_eq!(cases.len(), 42 * 4);
+        for case in cases {
+            assert_eq!(case["pageMs"]["samples"].as_array().unwrap().len(), 2);
+            assert!(case["request"]["limit"].as_u64().unwrap() <= 100);
+        }
+        // Page-only experiments must retain the selected exact-count SQL.
+        let (groups, remainder) = cases.as_chunks::<4>();
+        assert!(remainder.is_empty());
+        for group in groups {
+            assert_eq!(group[1]["strategy"], "OrderedEntrySet");
+            for candidate in &group[2..] {
+                assert_eq!(candidate["plans"][0]["sql"], group[1]["plans"][0]["sql"]);
+            }
+        }
+    }
+    assert!(db.diagnose_relationship_queries(0).await.is_err());
+    writer.close().await.unwrap();
+    db.close().await;
+}

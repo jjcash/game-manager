@@ -18,6 +18,9 @@ enum Strategy {
     OrderedJoin,
     EntrySet,
     OrderedEntrySet,
+    // Experiments only: keep M0.7B counts and vary bounded page selection.
+    PageMembership,
+    PageCorrelated,
 }
 impl Strategy {
     fn sql(self, sql: &str) -> String {
@@ -38,6 +41,16 @@ impl Strategy {
             Self::OrderedJoin => canonical.replace(ORIGINAL, &format!("({JOIN}) IS TRUE")),
             Self::EntrySet => canonical.replace(ORIGINAL, ENTRY_SET),
             Self::OrderedEntrySet => canonical.replace(ORIGINAL, &format!("({ENTRY_SET}) IS TRUE")),
+            Self::PageMembership | Self::PageCorrelated => {
+                let predicate = if sql.starts_with("SELECT count(*)") {
+                    format!("({ENTRY_SET}) IS TRUE")
+                } else if matches!(self, Self::PageMembership) {
+                    format!("({ORIGINAL}) IS TRUE")
+                } else {
+                    EXISTS.to_string()
+                };
+                canonical.replace(ORIGINAL, &predicate)
+            }
         }
     }
 }
@@ -200,13 +213,51 @@ pub fn scenarios(source: Option<String>) -> Vec<(String, Criteria, bool)> {
 
 impl Database {
     pub async fn diagnose_queries(&self, iterations: u32, all_strategies: bool) -> Result<Value> {
+        self.diagnose_query_set(iterations, if all_strategies { "all" } else { "finalists" })
+            .await
+    }
+
+    pub async fn diagnose_relationship_queries(&self, iterations: u32) -> Result<Value> {
+        self.diagnose_query_set(iterations, "relationships").await
+    }
+
+    async fn diagnose_query_set(&self, iterations: u32, set: &str) -> Result<Value> {
         if !(1..=10000).contains(&iterations) {
             return Err(invalid("Invalid diagnostic iteration count"));
         }
         let mut connection = self.pool.acquire().await?;
         let mut results = Vec::new();
         let source = self.source_options().await?.first().map(|s| s.id.clone());
-        for (name, criteria, deep) in scenarios(source) {
+        let mut cases = scenarios(source.clone());
+        if set == "relationships" {
+            for installed in [
+                InstallationFilter::Installed,
+                InstallationFilter::NotInstalled,
+            ] {
+                for (sort, direction) in [
+                    (SummarySort::Title, Direction::Asc),
+                    (SummarySort::ReleaseDate, Direction::Desc),
+                ] {
+                    for deep in [false, true] {
+                        cases.push((
+                            format!(
+                                "source-{installed:?}-{sort:?}-{}",
+                                if deep { "deep" } else { "first" }
+                            ),
+                            Criteria {
+                                installed,
+                                sort,
+                                direction,
+                                source_id: source.clone(),
+                                ..Default::default()
+                            },
+                            deep,
+                        ));
+                    }
+                }
+            }
+        }
+        for (name, criteria, deep) in cases {
             let count: i64 = execute(
                 &mut connection,
                 count_builder(&criteria),
@@ -234,7 +285,14 @@ impl Database {
             .await?
             .0;
             let expected = expected.iter().map(row_value).collect::<Vec<_>>();
-            let strategies: &[Strategy] = if all_strategies {
+            let strategies: &[Strategy] = if set == "relationships" {
+                &[
+                    Strategy::Baseline,
+                    Strategy::OrderedEntrySet,
+                    Strategy::PageMembership,
+                    Strategy::PageCorrelated,
+                ]
+            } else if set == "all" {
                 &[
                     Strategy::Baseline,
                     Strategy::InstallationJoin,

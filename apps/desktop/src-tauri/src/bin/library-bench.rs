@@ -78,11 +78,14 @@ async fn run() -> storage::Result<()> {
     storage::validate_path(&path)?;
     match action.as_str() {
         "query-diagnose" => {
-            let all_strategies = match options.remove("--strategies").as_deref().unwrap_or("all") {
-                "all" => true,
-                "finalists" => false,
-                _ => return Err(invalid("Strategies must be all or finalists")),
-            };
+            let strategies = options
+                .remove("--strategies")
+                .unwrap_or_else(|| "all".into());
+            if !matches!(strategies.as_str(), "all" | "finalists" | "relationships") {
+                return Err(invalid(
+                    "Strategies must be all, finalists or relationships",
+                ));
+            }
             let iterations: u32 = options
                 .remove("--iterations")
                 .unwrap_or_else(|| "50".into())
@@ -92,7 +95,11 @@ async fn run() -> storage::Result<()> {
                 return Err(invalid("Unknown diagnostic option"));
             }
             let db = storage::Database::benchmark_view(&path).await?;
-            let report = db.diagnose_queries(iterations, all_strategies).await?;
+            let report = if strategies == "relationships" {
+                db.diagnose_relationship_queries(iterations).await?
+            } else {
+                db.diagnose_queries(iterations, strategies == "all").await?
+            };
             db.close().await;
             println!(
                 "{}",

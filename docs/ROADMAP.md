@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: **M0 is in progress: M0.1 through M0.6 and M0.7A/M0.7B/M0.7C/M0.7D complete within their verified scope; M0.1.1 CI awaits documented GitHub verification.** M1-M5 have not started; the M0.7D investigation does not close the wider M0 gate. See [PROJECT_STATUS](PROJECT_STATUS.md) for measured limitations; the wider performance gate remains open.
+Status: **M0 is in progress: M0.1 through M0.6 and M0.7A/M0.7B/M0.7C/M0.7D/M0.7E complete within their verified scope; M0.1.1 CI awaits documented GitHub verification.** M1-M5 have not started; the M0.7E investigation does not close the wider M0 gate. See [PROJECT_STATUS](PROJECT_STATUS.md) for measured limitations; the wider performance gate remains open.
 
 ## M0 — Performance-validation prototype
 
@@ -141,7 +141,21 @@ Complete as an investigation; see [M0.7D verification](development/M0.7D_VERIFIC
 - [x] Retain production initialization after rejecting unproven optimizations; preserve actual loaded-row usability and initialization errors/recovery.
 - [x] Pass automated checks, both native builds, isolated normal launches and representative release/stress browsing/query/font/layout/artwork/job/native-resize regressions.
 
-Final 15,000-game native-timing-off medians remain **1,034.6 / 1,128.6 ms** with zero/two workers. Window construction profiles are about **717-917 ms**, application setup **3-4 ms**, database tasks **21-39 ms** in small reused-profile controls. No WebView2-internal, AV, DLL or scheduling cause is fabricated; WPR cannot start in the current non-elevated session. No production optimization or uniform startup improvement is claimed, and worse artifact-associated differences remain unresolved. Page/load tails and prior M0 limitations remain open. M0.7E requires separate authorization; it is not started. No commit or push.
+Final 15,000-game native-timing-off medians remain **1,034.6 / 1,128.6 ms** with zero/two workers. Window construction profiles are about **717-917 ms**, application setup **3-4 ms**, database tasks **21-39 ms** in small reused-profile controls. No WebView2-internal, AV, DLL or scheduling cause is fabricated; WPR cannot start in the current non-elevated session. No production optimization or uniform startup improvement is claimed, and worse artifact-associated differences remain unresolved. Page/load tails and prior M0 limitations remain open. M0.7E was subsequently authorized with the query scope below; further startup optimization is deferred. No commit or push.
+
+### M0.7E — Relationship-heavy and deep-page query cost/benefit investigation
+
+Complete as an investigation; see [M0.7E verification](development/M0.7E_VERIFICATION.md). **Accept the documented query limitation; retain M0.7B production queries. The M0 gate remains open.**
+
+- [x] Confirm M0.7D merged baseline and preserve reference/derivative fixtures and historical reports.
+- [x] Characterize exact counts, sorted IDs, bounded summaries, full pages, pool acquisition and native invoke/target/full-window costs separately.
+- [x] Compare reference, sparse/dense, two justified intermediate recipes and existing extreme fanout; explicitly separate structural plausibility from unsupported prevalence.
+- [x] Measure bounded query-only candidates and a representative covering-index screen, retain regressions and apply the cost-benefit stop rule.
+- [x] Complete 32 matched/reversed native deep conditions and 16 continuous artwork/mixed conditions at 15k/25k; preserve one failed writer-guard attempt, safe-prefix audit and successful repeat.
+- [x] Retain canonical/search/source/date/order/arbitrary-jump/resource/font behavior; pass final automated checks, native regressions, both build modes and normal-build isolation.
+- [x] Revert the temporary production candidate, document zero added production DB storage/write/migration cost, remaining budgets and next-task recommendation.
+
+Ordinary 15k benefits are modest/inconsistent; selected extreme page-p95 savings of 125–263 ms remain far over 50 ms and do not establish expected usage. Sparse and native release-scale regressions prevent a global change. No cache, flag, FTS, migration, keyset-only pagination, worker/pool increase, startup refactor or real integration is introduced. Remaining hardware/presentation/resource gates need separate disposition; M1 does not start automatically. No commit or push.
 
 ## M1 — Library foundation
 
