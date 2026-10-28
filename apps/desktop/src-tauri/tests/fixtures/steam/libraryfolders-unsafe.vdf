@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+"libraryfolders"
+{
+    "0" { "path" "D:\\ApprovedCandidateOnly" }
+    "1" { "path" "\\\\server\\share\\Steam" }
+    "2" { "path" "C:relative" }
+    "3" { "path" "C:\\safe\\..\\escape" }
+    "4" { "path" "\\\\?\\C:\\Steam" }
+    "5" { "path" "C:\\Steam:stream" }
+}

@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+"AppState"
+{
+    "appid" "410004"
+    "name" "Synthetic Download In Progress"
+    "StateFlags" "1048576"
+    "installdir" "Synthetic Partial"
+}

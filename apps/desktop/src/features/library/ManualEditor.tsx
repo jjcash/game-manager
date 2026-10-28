@@ -214,6 +214,30 @@ export function ManualEditor({
       ref={dialog}
       className="manual-editor"
       aria-label={title}
+      onKeyDown={(event) => {
+        if (
+          event.key !== "Tab" ||
+          event.altKey ||
+          event.ctrlKey ||
+          event.metaKey
+        )
+          return;
+        // WebView's native dialog traversal can visit the host after the last
+        // control. Keep the boundary explicit, including disabled fieldsets.
+        const controls = event.currentTarget.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled)',
+        );
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (!first) event.preventDefault();
+        else if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }}
       onCancel={(e) => {
         e.preventDefault();
         if (!busy) close();

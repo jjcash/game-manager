@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: **M0 conditionally closed under accepted ADR-007 (2026-10-28), retaining exceptions E1–E5. M1.1 is authorized; verification is recorded in [M1.1](development/M1.1_VERIFICATION.md).** The user confirms M0.8 passed GitHub CI and merged. Historical M0 sections below record task-time decisions; original misses and release obligations remain. M1.2 and later work require separate authorization. See [PROJECT_STATUS](PROJECT_STATUS.md).
+Status: **M0 conditionally closed under accepted ADR-007 (2026-10-28), retaining exceptions E1–E5; M1.1 manual persistence and M1.2 Steam contract/fixtures are verified.** See [M1.2 evidence](development/M1.2_STEAM_DISCOVERY_VERIFICATION.md) and [PROJECT_STATUS](PROJECT_STATUS.md). Historical M0 sections record task-time decisions; original misses and release obligations remain. M1.3 and later work require separate authorization.
 
 ## M0 — Performance-validation prototype
 
@@ -171,7 +171,13 @@ After approval, recommend a separately authorized small M1 core library-foundati
 
 **Complete and verified 2026-10-28.** Manual creation, explicit user metadata overrides, manual memberships and installation metadata, safe metadata-only removal, transactional persistence, restart and bounded Details View integration. Schema v2 extends application databases only; frozen generator-v1 benchmarks stay schema v1. See [verification](development/M1.1_VERIFICATION.md) for 45 frontend/37 default/60 benchmark-feature Rust tests, both native builds, persistence/isolation and 15k/25k regressions. No commit, push or later work is performed or authorized.
 
-### Remaining M1 scope
+### M1.2 — Steam Local Discovery Contract and Fixtures
+
+**Complete within scope, verified 2026-10-28:** local-source research, conservative installation/cache/ownership/account evidence, stable provider identity and user-override contracts, synthetic bounded parsers and adversarial fixtures. No production Steam read/import/write path or schema change. See [verification](development/M1.2_STEAM_DISCOVERY_VERIFICATION.md) for 17 contract tests, 46 frontend/54 default/77 benchmark-feature Rust tests, both native builds and persistence/isolation checks. A minimal modal Tab-boundary regression fix preserves the original native assertions. M0 E1–E5 remain accepted; M1.1 identity semantics remain intact.
+
+Recommended next **separately authorized** slice: M1.3 read-only installed-app discovery preview with native metadata-root permissions, Windows confinement/race tests, bounded paging, warnings and cancellation. No account-file reads, binary caches, networking, catalog commit or entitlement claim. A later persistent-import milestone needs explicit provider origins/mappings/value storage and tested v2 migration. No M1.3 work is authorized or started by this recommendation.
+
+### Broader remaining M1 scope
 
 Extend the verified Game, LibraryEntry and Installation foundation with separately authorized LaunchProfile identity, configurable grouping, initial Steam import, basic settings and artwork storage. Preserve explicit user overrides, canonical identity and bounded queries; make future imports idempotent.
 

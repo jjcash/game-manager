@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+"AppState"
+{
+    "appid" "410003"
+    "StateFlags" "6"
+    "installdir" "名前のない Synthetic App"
+}

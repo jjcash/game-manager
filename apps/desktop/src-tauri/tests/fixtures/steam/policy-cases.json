@@ -1,0 +1,126 @@
+{
+  "accounts": [
+    { "known": [], "choice": null, "expected": "selectionRequired" },
+    {
+      "known": ["fictional-A"],
+      "choice": null,
+      "expected": "selectionRequired"
+    },
+    {
+      "known": ["fictional-A", "fictional-B"],
+      "choice": null,
+      "expected": "selectionRequired"
+    },
+    {
+      "known": ["fictional-A", "fictional-B"],
+      "choice": "fictional-A",
+      "expected": "selected"
+    },
+    {
+      "known": ["fictional-A", "fictional-B"],
+      "choice": "fictional-B",
+      "expected": "selected"
+    },
+    {
+      "known": ["fictional-A"],
+      "choice": "not-known",
+      "expected": "selectionRequired"
+    },
+    {
+      "known": ["fictional-A", "fictional-B"],
+      "choice": "continue-unattributed",
+      "expected": "unattributed"
+    }
+  ],
+  "cache": [
+    {
+      "name": "410006",
+      "directory": true,
+      "reparse": false,
+      "expected": 410006
+    },
+    {
+      "name": "410001",
+      "directory": true,
+      "reparse": false,
+      "expected": 410001
+    },
+    { "name": "410001", "directory": true, "reparse": true, "expected": null },
+    {
+      "name": "410006_header.jpg",
+      "directory": false,
+      "reparse": false,
+      "expected": null
+    },
+    {
+      "name": "../../410006",
+      "directory": true,
+      "reparse": false,
+      "expected": null
+    },
+    {
+      "name": "000410006",
+      "directory": true,
+      "reparse": false,
+      "expected": null
+    },
+    {
+      "name": "4294967296",
+      "directory": true,
+      "reparse": false,
+      "expected": null
+    }
+  ],
+  "absence": [
+    {
+      "complete": false,
+      "manifestMissing": true,
+      "proposeInstallationMissing": false
+    },
+    {
+      "complete": true,
+      "manifestMissing": false,
+      "proposeInstallationMissing": false
+    },
+    {
+      "complete": true,
+      "manifestMissing": true,
+      "proposeInstallationMissing": true
+    }
+  ],
+  "contexts": [
+    {
+      "name": "installed client stopped",
+      "running": false,
+      "reportedCurrent": null,
+      "previous": "fictional-A",
+      "familyHint": false,
+      "cacheComplete": false
+    },
+    {
+      "name": "client running with account hint",
+      "running": true,
+      "reportedCurrent": "fictional-A",
+      "previous": "fictional-A",
+      "familyHint": false,
+      "cacheComplete": true
+    },
+    {
+      "name": "account switched",
+      "running": true,
+      "reportedCurrent": "fictional-B",
+      "previous": "fictional-A",
+      "familyHint": false,
+      "cacheComplete": false
+    },
+    {
+      "name": "family accessibility ambiguous",
+      "running": true,
+      "reportedCurrent": "fictional-B",
+      "previous": "fictional-A",
+      "familyHint": true,
+      "cacheComplete": true
+    }
+  ],
+  "note": "Synthetic model snapshots, not Steam wire files. fictional-A/B are not SteamIDs. Cache presence, family hints, previous account and selected account never establish ownership. No login/session values are included."
+}

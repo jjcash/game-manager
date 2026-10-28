@@ -1,0 +1,14 @@
+[
+  { "kind": "appinfo", "hex": "27445607", "expected": "deferred39" },
+  { "kind": "appinfo", "hex": "28445607", "expected": "deferred40" },
+  {
+    "kind": "appinfo",
+    "hex": "2944560701000000ffffffffffffffff",
+    "expected": "deferred41"
+  },
+  { "kind": "appinfo", "hex": "2a445607", "expected": "unsupported" },
+  { "kind": "appinfo", "hex": "2944", "expected": "truncated" },
+  { "kind": "packageinfo", "hex": "27555606", "expected": "deferred39" },
+  { "kind": "packageinfo", "hex": "28555606", "expected": "deferred40" },
+  { "kind": "packageinfo", "hex": "29555606", "expected": "unsupported" }
+]
