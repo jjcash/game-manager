@@ -183,7 +183,7 @@ The [M1.3 stop](development/M1.3_STEAM_PREVIEW_VERIFICATION.md), [M1.3A investig
 
 ### M1.3C — Isolated Windows Steam Metadata Reader Feasibility
 
-**Authorized only after ADR-008 is merged into `main`, from a clean baseline containing the accepted ADR. Not started.** If it has not merged, prepare and verify the documentation changes, report and stop without committing, pushing, merging or starting M1.3C.
+**Attempted from clean merged ADR-008 baseline `ea616e9`; security gate incomplete.** The [M1.3C feasibility report](development/M1.3C_WINDOWS_READER_FEASIBILITY.md) records an actual isolated Rust candidate, 11 native passes, a failed root-replacement fixture and unavailable symlink coverage. Recommendation: **defer Steam local discovery**. No safe reader is certified; parser integration and scan benchmarks were not undertaken. The unverified exit requirements below remain unchecked.
 
 - [ ] Build a small isolated Rust candidate for one explicitly selected disposable local NTFS root, native retained root identity, literal relative `steamapps` access and exact manifest leaves.
 - [ ] Verify no-reparse/conservative object validation, observed hard-link rejection before content reads, bounded existing-file read-only access, ordinary concurrent-update checks, cancellation and handle cleanup.
