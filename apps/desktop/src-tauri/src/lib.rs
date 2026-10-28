@@ -295,6 +295,9 @@ pub fn run() {
         commands::library_get_info,
         commands::library_get_window,
         commands::library_query,
+        commands::manual_get,
+        commands::manual_create,
+        commands::manual_mutate,
         commands::artwork_get_thumbnail,
         commands::artwork_get_stats
     ]);
@@ -306,6 +309,9 @@ pub fn run() {
         commands::library_get_info,
         commands::library_get_window,
         commands::library_query,
+        commands::manual_get,
+        commands::manual_create,
+        commands::manual_mutate,
         commands::artwork_get_thumbnail,
         commands::artwork_get_stats,
         commands::synthetic_start,

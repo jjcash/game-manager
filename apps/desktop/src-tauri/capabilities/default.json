@@ -10,6 +10,9 @@
     "allow-library-get-info",
     "allow-library-get-window",
     "allow-library-query",
+    "allow-manual-get",
+    "allow-manual-create",
+    "allow-manual-mutate",
     "allow-artwork-get-thumbnail",
     "allow-artwork-get-stats"
   ]

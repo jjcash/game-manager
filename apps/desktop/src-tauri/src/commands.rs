@@ -45,12 +45,49 @@ pub fn app_get_status() -> AppStatus {
 // Keep local SQLite/OS diagnostics out of the frontend response.
 fn public_error(mut error: crate::storage::StorageError) -> crate::storage::StorageError {
     use crate::storage::ErrorCode;
-    if !matches!(error.code, ErrorCode::NotReady | ErrorCode::InvalidRequest) {
+    if !matches!(
+        error.code,
+        ErrorCode::NotReady | ErrorCode::InvalidRequest | ErrorCode::NotFound | ErrorCode::Conflict
+    ) {
         eprintln!("{}", serde_json::to_string(&error).unwrap_or_default());
         error.message =
             "Database unavailable. Check the configured data location and local diagnostics, then restart Game Manager. The database was preserved.".into();
     }
     error
+}
+
+#[tauri::command]
+pub async fn manual_get(
+    budget: tauri::State<'_, std::sync::Arc<crate::scheduling::Budget>>,
+    state: tauri::State<'_, crate::DatabaseState>,
+    game_id: String,
+) -> crate::storage::Result<crate::storage::manual::Details> {
+    let _foreground = budget.enter();
+    async { state.ready()?.manual_details(&game_id).await }
+        .await
+        .map_err(public_error)
+}
+#[tauri::command]
+pub async fn manual_create(
+    budget: tauri::State<'_, std::sync::Arc<crate::scheduling::Budget>>,
+    state: tauri::State<'_, crate::DatabaseState>,
+    request: crate::storage::manual::CreateRequest,
+) -> crate::storage::Result<String> {
+    let _foreground = budget.enter();
+    async { state.ready()?.manual_create(&request).await }
+        .await
+        .map_err(public_error)
+}
+#[tauri::command]
+pub async fn manual_mutate(
+    budget: tauri::State<'_, std::sync::Arc<crate::scheduling::Budget>>,
+    state: tauri::State<'_, crate::DatabaseState>,
+    request: crate::storage::manual::MutationRequest,
+) -> crate::storage::Result<()> {
+    let _foreground = budget.enter();
+    async { state.ready()?.manual_mutate(&request).await }
+        .await
+        .map_err(public_error)
 }
 
 #[tauri::command]

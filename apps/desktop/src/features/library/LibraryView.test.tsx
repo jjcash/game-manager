@@ -19,6 +19,11 @@ import { useLibraryUI } from "./state";
 import { pageGate } from "./requestGate";
 import { artworkQueue, type ArtworkResult } from "./artwork";
 import { StrictMode } from "react";
+import { createManual } from "../../ipc/manual";
+vi.mock("../../ipc/manual", async (original) => ({
+  ...(await original<typeof import("../../ipc/manual")>()),
+  createManual: vi.fn(),
+}));
 vi.mock("../../ipc/library", async (original) => ({
   ...(await original<typeof import("../../ipc/library")>()),
   getLibraryInfo: vi.fn(),
@@ -90,6 +95,41 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe("Details View", () => {
+  it("refreshes counts and bounded pages after manual creation and clears obsolete selection", async () => {
+    HTMLDialogElement.prototype.showModal = function () {
+      this.open = true;
+    };
+    HTMLDialogElement.prototype.close = function () {
+      this.open = false;
+    };
+    vi.mocked(getLibraryInfo).mockImplementation(async () => ({
+      total,
+      libraryTotal: total,
+      sources: [],
+      queryMs: 0,
+      source: "Local application library",
+      diagnostics: false,
+    }));
+    vi.mocked(createManual).mockImplementation(async () => {
+      total = 1;
+      return "created";
+    });
+    render(<LibraryView />);
+    await screen.findByText("Game 0");
+    fireEvent.click(screen.getByText("Game 0"));
+    fireEvent.click(screen.getByRole("button", { name: "Add game" }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Created" },
+    });
+    fireEvent.click(screen.getByText("Create game"));
+    await waitFor(() =>
+      expect(screen.getByRole("grid").getAttribute("aria-rowcount")).toBe("2"),
+    );
+    expect(useLibraryUI.getState().selection).toBeNull();
+    expect(getLibraryInfo).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(pageGate.activeRequests).toBeLessThanOrEqual(1);
+  });
   it.each(["installed", "notInstalled"] as const)(
     "resets a deep %s result before release sorting Unicode titles and retains control focus",
     async (installed) => {

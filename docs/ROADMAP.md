@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: **M0 remains open pending the user's gate decision.** M0.8 recommends conditional closure with documented exceptions; [ADR-007](decisions/ADR-007-conditional-m0-performance-gate.md) is Proposed, not accepted. M0.1–M0.7E investigation slices are complete within their verified scope; M0.1.1 CI awaits documented GitHub verification. M1–M5 have not started. See [M0.8 disposition](development/M0.8_GATE_DISPOSITION.md) and [PROJECT_STATUS](PROJECT_STATUS.md).
+Status: **M0 conditionally closed under accepted ADR-007 (2026-10-28), retaining exceptions E1–E5. M1.1 is authorized; verification is recorded in [M1.1](development/M1.1_VERIFICATION.md).** The user confirms M0.8 passed GitHub CI and merged. Historical M0 sections below record task-time decisions; original misses and release obligations remain. M1.2 and later work require separate authorization. See [PROJECT_STATUS](PROJECT_STATUS.md).
 
 ## M0 — Performance-validation prototype
 
@@ -11,7 +11,7 @@ Status: **M0 remains open pending the user's gate decision.** M0.8 recommends co
 - [x] Rust title substring search plus installation/source/year filters, bounded counts/windows - M0.4.
 - [x] Real local synthetic thumbnails with bounded jobs/queue/result/disk caches - M0.5; see [artwork evidence](development/M0.5_VERIFICATION.md).
 - [x] Synthetic background-load simulator with bounded progress, scheduling and safe cancellation — M0.6; isolated fixtures only.
-- [ ] Approve wider M0 gate disposition — M0.8 proposes conditional closure, preserving startup/query/pressure misses, finite memory evidence and unverified hardware/presentation conditions; user approval remains required.
+- [x] Approve conditional M0 gate disposition — user accepted ADR-007 on 2026-10-28 with E1–E5; original misses and unverified release conditions remain.
 - [x] Record initial Details View readiness, scrolling/frame intervals, IPC/query durations and memory point samples at 500, 12,320, 15,000 and 25,000 — M0.3; wider startup/load/long-session work remains open.
 - [x] Run comparable real NVMe and HDD synthetic measurements — M0.7C reversed placement/load controls; M0.8 supplemental controls. OS-cold and lower-memory results are not implied.
 
@@ -161,13 +161,19 @@ Ordinary 15k benefits are modest/inconsistent; selected extreme page-p95 savings
 
 The [disposition report](development/M0.8_GATE_DISPOSITION.md) consolidates original numerical targets, technical passes/failures/unverified conditions, cost-benefit judgments and proposed exceptions. Focused tests reproduce deliberate writer-pool exhaustion and verify surfaced failure, cancellation, valid prefixes and recovery; they do not establish the historical unexpected timeout's cause. No pool/deadline/scheduler/query/startup change is selected.
 
-**Recommendation: conditional M0 closure with documented exceptions, pending explicit user approval.** [ADR-007](decisions/ADR-007-conditional-m0-performance-gate.md) proposes the milestone policy for review; the gate checkbox above remains open. Original PRD/TAS/DSS targets stay unchanged. Missing low-RAM/cold-start/compositor evidence and feature-specific acceptance remain release/product obligations. No open-ended profiling or SQL program is proposed.
+**Accepted: conditional M0 closure with documented exceptions, by explicit user instruction on 2026-10-28.** [ADR-007](decisions/ADR-007-conditional-m0-performance-gate.md) records acceptance; the gate checkbox above records conditional closure. Original PRD/TAS/DSS targets stay unchanged. Missing low-RAM/cold-start/compositor evidence and feature-specific acceptance remain release/product obligations. No open-ended profiling or SQL program is proposed.
 
 After approval, recommend a separately authorized small M1 core library-foundation slice. Do not start importing, providers, mod work or M1 automatically. Reopen only for the documented correctness/resource/representative-performance conditions, with a plausible cost-effective remedy. No commit or push.
 
 ## M1 — Library foundation
 
-Implement canonical Game, LibraryEntry, Installation and LaunchProfile identities, configurable grouping, manual entries, user overrides, migrations, bounded library queries, virtualized views and initial Steam import. Preserve provenance and make imports idempotent. Include basic settings and artwork storage.
+### M1.1 — Persistent Manual Library Foundation
+
+**Complete and verified 2026-10-28.** Manual creation, explicit user metadata overrides, manual memberships and installation metadata, safe metadata-only removal, transactional persistence, restart and bounded Details View integration. Schema v2 extends application databases only; frozen generator-v1 benchmarks stay schema v1. See [verification](development/M1.1_VERIFICATION.md) for 45 frontend/37 default/60 benchmark-feature Rust tests, both native builds, persistence/isolation and 15k/25k regressions. No commit, push or later work is performed or authorized.
+
+### Remaining M1 scope
+
+Extend the verified Game, LibraryEntry and Installation foundation with separately authorized LaunchProfile identity, configurable grouping, initial Steam import, basic settings and artwork storage. Preserve explicit user overrides, canonical identity and bounded queries; make future imports idempotent.
 
 Exit: records persist through restart; repeated imports do not duplicate entries or erase local edits; browsing remains responsive. The proposed detailed DSS must become tested migrations rather than being assumed production SQL.
 

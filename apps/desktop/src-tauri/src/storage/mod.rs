@@ -8,6 +8,7 @@ use std::{
     time::Duration,
 };
 
+pub mod manual;
 pub mod query;
 #[cfg(feature = "benchmarks")]
 mod search_evaluation;
@@ -15,6 +16,13 @@ mod search_evaluation;
 pub mod synthetic;
 
 pub static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
+// Generator-v1 fixtures and their writers retain the exact v1 schema/checksum.
+fn benchmark_migrator() -> Migrator {
+    Migrator {
+        migrations: std::borrow::Cow::Borrowed(&MIGRATOR.migrations[..1]),
+        ..Migrator::DEFAULT
+    }
+}
 pub const MAX_PAGE_SIZE: u32 = 200;
 pub const POOL_SIZE: u32 = 4;
 
@@ -30,6 +38,8 @@ pub enum ErrorCode {
     AlreadyExists,
     InvalidRequest,
     NotReady,
+    NotFound,
+    Conflict,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -229,8 +239,9 @@ impl Database {
         )
         .fetch_all(&db.pool)
         .await?;
-        if applied.len() != MIGRATOR.iter().count()
-            || applied.iter().zip(MIGRATOR.iter()).any(
+        let fixture_migrator = benchmark_migrator();
+        if applied.len() != fixture_migrator.iter().count()
+            || applied.iter().zip(fixture_migrator.iter()).any(
                 |((version, success, checksum), migration)| {
                     *version != migration.version
                         || !success
@@ -339,7 +350,12 @@ impl Database {
         #[cfg(feature = "benchmarks")]
         crate::startup_mark("application-identity-validated");
         // SQLx validates migration checksums and rejects versions absent from this binary.
-        MIGRATOR
+        let migrator = if purpose == "benchmark" {
+            &benchmark_migrator()
+        } else {
+            &MIGRATOR
+        };
+        migrator
             // SQLx's direct entry point avoids its generic Acquire lifetime limitation
             // when this initialization future is spawned on Tauri's Send runtime.
             .run_direct(None, &mut connection, false)

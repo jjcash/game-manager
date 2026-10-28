@@ -34,6 +34,7 @@ import {
 } from "./cache";
 import { pageGate } from "./requestGate";
 import { Thumbnail } from "./Thumbnail";
+import { ManualEditor } from "./ManualEditor";
 import { artworkQueue } from "./artwork";
 import { useLibraryUI } from "./state";
 import { LibraryControls } from "./LibraryControls";
@@ -102,6 +103,7 @@ function Library({
   pendingCriteria: boolean;
 }) {
   const client = useQueryClient();
+  const [editor, setEditor] = useState<{ gameId: string | null } | null>(null);
   const info = useQuery({
     queryKey: ["info", generation, criteria],
     placeholderData: keepPreviousData, // retain source options; never render placeholder counts/rows
@@ -426,10 +428,41 @@ function Library({
                   : "Connecting to library…"}
           </span>
         </div>
+        <button
+          className="check-button"
+          disabled={
+            !info.isSuccess || info.data?.source !== "Local application library"
+          }
+          onClick={() => setEditor({ gameId: null })}
+        >
+          Add game
+        </button>
+        <button
+          className="check-button"
+          disabled={
+            !selection?.id || info.data?.source !== "Local application library"
+          }
+          onClick={() => {
+            if (selection?.id) setEditor({ gameId: selection.id });
+          }}
+        >
+          Manage selected game
+        </button>
         <button className="check-button" onClick={refresh}>
           Refresh library
         </button>
       </div>
+      {editor && (
+        <ManualEditor
+          gameId={editor.gameId}
+          close={() => setEditor(null)}
+          changed={() => {
+            useLibraryUI.getState().reset();
+            virtualizer.scrollToOffset(0);
+            refresh();
+          }}
+        />
+      )}
       <LibraryControls sources={info.data?.sources} />
       <p id="library-help" className="library-help">
         Details View · SQLite ordering · Arrow keys to select · Home / End ·
