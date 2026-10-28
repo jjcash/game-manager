@@ -10,6 +10,8 @@ The [M0.2 verification report](docs/development/M0.2_VERIFICATION.md) records th
 
 ## Read the documentation
 
+**M0.8 recommends conditional M0 closure with documented exceptions, pending explicit user approval. The gate remains open and M1 has not started.** The [gate-disposition report](docs/development/M0.8_GATE_DISPOSITION.md) preserves original targets, measured startup/query/pressure/frame/memory limitations, hardware gaps and the unexplained historical writer guard. [ADR-007](docs/decisions/ADR-007-conditional-m0-performance-gate.md) proposes the acceptance policy for review. No additional speculative SQL/startup work or automatic integration work is selected.
+
 | Document                                                        | Purpose                                                       |
 | --------------------------------------------------------------- | ------------------------------------------------------------- |
 | [AGENTS](AGENTS.md)                                             | Permanent agent instructions, scope and safety                |

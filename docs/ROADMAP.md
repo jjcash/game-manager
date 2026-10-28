@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: **M0 is in progress: M0.1 through M0.6 and M0.7A/M0.7B/M0.7C/M0.7D/M0.7E complete within their verified scope; M0.1.1 CI awaits documented GitHub verification.** M1-M5 have not started; the M0.7E investigation does not close the wider M0 gate. See [PROJECT_STATUS](PROJECT_STATUS.md) for measured limitations; the wider performance gate remains open.
+Status: **M0 remains open pending the user's gate decision.** M0.8 recommends conditional closure with documented exceptions; [ADR-007](decisions/ADR-007-conditional-m0-performance-gate.md) is Proposed, not accepted. M0.1–M0.7E investigation slices are complete within their verified scope; M0.1.1 CI awaits documented GitHub verification. M1–M5 have not started. See [M0.8 disposition](development/M0.8_GATE_DISPOSITION.md) and [PROJECT_STATUS](PROJECT_STATUS.md).
 
 ## M0 — Performance-validation prototype
 
@@ -11,11 +11,11 @@ Status: **M0 is in progress: M0.1 through M0.6 and M0.7A/M0.7B/M0.7C/M0.7D/M0.7E
 - [x] Rust title substring search plus installation/source/year filters, bounded counts/windows - M0.4.
 - [x] Real local synthetic thumbnails with bounded jobs/queue/result/disk caches - M0.5; see [artwork evidence](development/M0.5_VERIFICATION.md).
 - [x] Synthetic background-load simulator with bounded progress, scheduling and safe cancellation — M0.6; isolated fixtures only.
-- [ ] Complete wider startup/scroll/search/memory/interaction gate — M0.6 records SSD contention and component readiness; controlled process-cold, HDD/lower-memory and longer-session evidence remain open.
+- [ ] Approve wider M0 gate disposition — M0.8 proposes conditional closure, preserving startup/query/pressure misses, finite memory evidence and unverified hardware/presentation conditions; user approval remains required.
 - [x] Record initial Details View readiness, scrolling/frame intervals, IPC/query durations and memory point samples at 500, 12,320, 15,000 and 25,000 — M0.3; wider startup/load/long-session work remains open.
-- [ ] Run comparable SSD and HDD measurements.
+- [x] Run comparable real NVMe and HDD synthetic measurements — M0.7C reversed placement/load controls; M0.8 supplemental controls. OS-cold and lower-memory results are not implied.
 
-Scale fixtures through 500, 2,000, 5,000, 12,320, 15,000 and 25,000 records. Use the known Ryzen 5 4500/64 GB system as one reference, plus lower-memory testing. Record release build/version, hardware, storage placement, cache state, dataset seed/version and concurrent work. TAS contains the recovered provisional targets; no target is already achieved. Establish actual build/format/lint/test commands.
+Scale fixtures through 500, 2,000, 5,000, 12,320, 15,000 and 25,000 records. Use the known Ryzen 5 4500/64 GB system as one reference, plus lower-memory testing. Record release build/version, hardware, storage placement, cache state, dataset seed/version and concurrent work. TAS retains the original provisional targets; the M0.8 matrix distinguishes verified passes, misses and unverified conditions. Use the documented build/format/lint/test commands.
 
 Exit: reproducible 15,000-game measurements and a documented architecture assessment; stress findings at 25,000. Keep M0 synthetic and independent of real stores/game installations.
 
@@ -156,6 +156,14 @@ Complete as an investigation; see [M0.7E verification](development/M0.7E_VERIFIC
 - [x] Revert the temporary production candidate, document zero added production DB storage/write/migration cost, remaining budgets and next-task recommendation.
 
 Ordinary 15k benefits are modest/inconsistent; selected extreme page-p95 savings of 125–263 ms remain far over 50 ms and do not establish expected usage. Sparse and native release-scale regressions prevent a global change. No cache, flag, FTS, migration, keyset-only pagination, worker/pool increase, startup refactor or real integration is introduced. Remaining hardware/presentation/resource gates need separate disposition; M1 does not start automatically. No commit or push.
+
+### M0.8 — Final M0 performance gate disposition
+
+The [disposition report](development/M0.8_GATE_DISPOSITION.md) consolidates original numerical targets, technical passes/failures/unverified conditions, cost-benefit judgments and proposed exceptions. Focused tests reproduce deliberate writer-pool exhaustion and verify surfaced failure, cancellation, valid prefixes and recovery; they do not establish the historical unexpected timeout's cause. No pool/deadline/scheduler/query/startup change is selected.
+
+**Recommendation: conditional M0 closure with documented exceptions, pending explicit user approval.** [ADR-007](decisions/ADR-007-conditional-m0-performance-gate.md) proposes the milestone policy for review; the gate checkbox above remains open. Original PRD/TAS/DSS targets stay unchanged. Missing low-RAM/cold-start/compositor evidence and feature-specific acceptance remain release/product obligations. No open-ended profiling or SQL program is proposed.
+
+After approval, recommend a separately authorized small M1 core library-foundation slice. Do not start importing, providers, mod work or M1 automatically. Reopen only for the documented correctness/resource/representative-performance conditions, with a plausible cost-effective remedy. No commit or push.
 
 ## M1 — Library foundation
 

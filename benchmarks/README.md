@@ -1,5 +1,7 @@
 # Synthetic performance benchmarks
 
+Current gate recommendation: [M0.8 conditional closure with documented exceptions](../docs/development/M0.8_GATE_DISPOSITION.md), pending explicit user approval. The gate is open; historical investigation completion does not establish every performance target passed.
+
 ## M0.7E relationship and deep-page investigation
 
 See [M0.7E verification](../docs/development/M0.7E_VERIFICATION.md) for the cost/benefit decision, dataset relevance and separate SQL/native boundaries. Finish builds/tests/fixture generation before collection. Use retained optimized binaries and new result roots; keep OS caches and ordinary desktop activity explicit.
@@ -126,6 +128,32 @@ python benchmarks/distributions.py `
 Original variants are `sparse` (10% installed, one copy/canonical game), `dense` (90%) and `fanout` (six extra memberships/canonical game, four copies/new membership). M0.7E adds `overlap`/`copies` as described above. The script refuses existing outputs/sidecars, requires complete benchmark input, uses SQLite backup, validates integrity/FKs and rechecks the source hash. A sidecar manifest identifies each derivative; its retained generator metadata does not make it the unchanged generator-v1 reference distribution. Run `library-bench query-diagnose --database ABSOLUTE_DERIVATIVE --iterations 10 --strategies finalists` with bundled SQLx SQLite; Python is used only for fixture creation. Exact count/full-summary equivalence remains mandatory. These distributions do not validate mostly unique artwork, every title script, real import behavior or arbitrary future provider cardinalities.
 
 After collection, run `node --test benchmarks/arrival.test.mjs benchmarks/ipc-recorder.test.mjs benchmarks/layout.test.mjs` and `./benchmarks/process-memory.test.ps1`, in addition to the documented project checks/builds and ordinary production-isolation smoke. Lower-RAM hardware, physical scaling, OS-cold storage and actual presentation stay unverified unless explicitly measured; future procedures are in the verification report.
+
+## M0.8 final gate disposition and bounded controls
+
+See the [M0.8 gate disposition](../docs/development/M0.8_GATE_DISPOSITION.md) for the original-target matrix, historical failures, hardware boundaries, actual results and reopening policy. **Conditional closure is a recommendation pending user approval, not a technical pass or closed gate.** Keep M0.7B production queries and existing startup/default policies. Do not restart a speculative optimization program.
+
+The focused acquisition tests run only under the existing synthetic benchmark feature and Rust test configuration:
+
+```powershell
+cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --features benchmarks --locked acquisition_tests -- --nocapture --test-threads=1
+```
+
+Use serial bounded repeats, retaining every exit/log. They hold all four connections deliberately to reproduce the existing 250-ms guard, then verify zero-prefix failure, cancellation and subsequent successful jobs; another test runs concurrent actual reads and repeated writes. The pool's underlying timeout remains ten seconds. This reproduces a failure mechanism, not the unknown historical cause. Fixture roots are disposable; tracing is bounded test output. No capacity/deadline/policy change is made.
+
+For **physical Windows display scaling**, first select 100%, 125% or 150% in Windows Settings on the monitor where the new native app launches. Build the locked benchmark executable before collection, then:
+
+```powershell
+./benchmarks/physical-scaling.ps1 `
+  -DatabaseDirectory E:\dev\game-manager\benchmarks\data\m0.2-2026-10-25-01 `
+  -BenchmarkExecutable E:\dev\game-manager\apps\desktop\src-tauri\target\release\game-manager.exe `
+  -ExpectedDpi 120 `
+  -ResultsDirectory E:\dev\game-manager\benchmarks\results\m0.8-scale-125-new
+```
+
+Use DPI 96/120/144 respectively, a new results root each time, and restore the original setting afterward. The runner uses only synthetic read-only DBs, isolated application/profile paths, source hashes and clean native shutdown. It executes the established query driver at 15k/25k, checks actual **GetDpiForWindow** against the expectation, then verifies natural WebView DPR, 38-CSS-pixel rows, bounded mounting, horizontal overflow and resolved Japanese-title/placeholder fonts. Screenshots are DOM captures, not compositor measurements. No device-metrics emulation is used; physical scaling must be established separately in Windows Settings. Existing emulated-DPR drivers remain separately labelled.
+
+Reduced process memory is not 8–16-GB Windows validation. Fresh profiles/pool reopens are not OS-cold. rAF/LongTask/Layout/DOM readiness are not displayed FPS. Unavailable hardware/privileges leave a criterion unverified; reproducible low-RAM, compositor and cold-start procedures are in M0.8. Preserve failed writer roots and exact settings before retries. An unexpected recurrence warrants bounded acquisition-entry/outcome, occupancy and executor-heartbeat capture, not larger pools/timeouts.
 
 ## Original M0.2 database baseline
 
