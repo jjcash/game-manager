@@ -1,6 +1,18 @@
 # Synthetic performance benchmarks
 
-Current gate recommendation: [M0.8 conditional closure with documented exceptions](../docs/development/M0.8_GATE_DISPOSITION.md), pending explicit user approval. The gate is open; historical investigation completion does not establish every performance target passed.
+M0 gate evidence: [conditional closure with documented exceptions](../docs/development/M0.8_GATE_DISPOSITION.md), accepted by the user on 2026-10-28 under ADR-007. M0 is conditionally closed with E1–E5; historical investigation completion does not establish every performance target passed.
+
+## M1.1 manual library verification
+
+Use an ordinary optimized executable for the production manual workflow. The runner reserves a new output directory, sets a disposable application-purpose root and WebView profile, and performs four real launches (create, reopen/edit, reopen/remove, reopen/empty). All writes go through the UI and narrow Rust commands; installation locations are opaque strings. No personal database or game installation is used.
+
+```powershell
+./benchmarks/manual.ps1 -ResultsDirectory E:/dev/game-manager/benchmarks/results/manual-new
+./benchmarks/manual-query.ps1 -ResultsDirectory E:/dev/game-manager/benchmarks/results/manual-query-new `
+  -BaselineExecutable E:/dev/game-manager/benchmarks/results/m1.1-baseline/game-manager.exe
+```
+
+The query runner uses SQLite backup to create exclusively new application-purpose copies of the 15k/25k synthetic fixtures, runs schema-v1 baseline and schema-v2 ordinary builds in reversed order over two passes, and retains 20 warm full-summary/query/invoke samples per first/deep case after one warm-up. Exact repeated rows and page lengths are asserted. Original fixture hashes must match afterward. OS caches are retained, fresh WebView profiles are used per launch, and timings are finite service measurements without displayed-frame claims. Build/test work must finish before measuring. M0 reference databases, generator and historical migration remain v1; the application migrator adds v2 only to application databases. See [M1.1 verification](../docs/development/M1.1_VERIFICATION.md).
 
 ## M0.7E relationship and deep-page investigation
 

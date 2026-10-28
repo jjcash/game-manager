@@ -304,6 +304,7 @@ h1 {
 }
 .library-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -517,4 +518,74 @@ h1 {
 }
 .library-controls select {
   max-width: 220px;
+}
+/* Bounded, keyboard-accessible manual editor; the virtualized table stays intact. */
+.manual-editor {
+  color: #e8eef0;
+  background: var(--color-surface);
+  border: 1px solid #59716c;
+  border-radius: 10px;
+  width: min(640px, 90vw);
+  max-height: 85vh;
+  padding: 24px;
+  margin: auto;
+  overflow: auto;
+}
+.manual-editor::backdrop {
+  background: #000a;
+}
+.manual-editor h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.manual-editor h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 18px 0 8px;
+}
+.manual-editor fieldset {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.manual-editor label {
+  display: block;
+  margin: 10px 0;
+}
+.manual-editor input:not([type="checkbox"]),
+.manual-editor select {
+  display: block;
+  width: 100%;
+  background: var(--color-canvas);
+  color: inherit;
+  border: 1px solid #3a484e;
+  padding: 7px;
+  border-radius: 4px;
+}
+.manual-editor button {
+  margin: 5px 8px 5px 0;
+  padding: 7px 12px;
+  border: 1px solid #3a484e;
+  border-radius: 4px;
+  background: #202a2e;
+  color: inherit;
+  cursor: pointer;
+}
+.manual-editor button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.manual-editor li {
+  overflow-wrap: anywhere;
+  margin: 12px 0;
+}
+.manual-editor :focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+.manual-editor [role="alert"],
+.manual-editor [role="alertdialog"] {
+  border: 1px solid #ecb26b;
+  padding: 10px;
 }

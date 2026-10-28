@@ -28,7 +28,7 @@ async fn fresh_migrations_empty_behavior_and_reopen_preserve_records() {
     let path = dir.path().join("library.sqlite3");
     let db = Database::initialize(&path).await.unwrap();
     let status = db.status().await.unwrap();
-    assert_eq!(status.schema_version, 1);
+    assert_eq!(status.schema_version, 2);
     assert_eq!(status.journal_mode, "wal");
     assert!(status.foreign_keys);
     assert_eq!(status.pool_limit, 4);
@@ -53,7 +53,7 @@ async fn fresh_migrations_empty_behavior_and_reopen_preserve_records() {
             .fetch_one(&mut conn)
             .await
             .unwrap(),
-        1
+        2
     );
     conn.close().await.unwrap();
 }
@@ -64,18 +64,18 @@ async fn identity_constraints_foreign_keys_and_multiple_relationships() {
     let path = dir.path().join("library.sqlite3");
     let db = Database::initialize(&path).await.unwrap();
     let mut c = raw(&path).await;
-    sqlx::raw_sql("INSERT INTO games VALUES ('g', 'Title', 'title', NULL, NULL, NULL, 0, 0, 0);
+    sqlx::raw_sql("INSERT INTO games(id,title,sort_title,release_date,genre,developer,favorite,created_at_ms,updated_at_ms) VALUES ('g', 'Title', 'title', NULL, NULL, NULL, 0, 0, 0);
         INSERT INTO library_sources VALUES ('a', 'manual', 'A'), ('b', 'manual', 'B');
         INSERT INTO library_entries VALUES ('e1', 'g', 'a', '1', 'playing', 0), ('e2', 'g', 'b', '1', 'completed', 0);
-        INSERT INTO game_installations VALUES ('i1', 'e1', 'synthetic://one', 'windows', '1', 'present'), ('i2', 'e1', 'synthetic://two', 'windows', '2', 'missing'), ('i3', 'e2', 'synthetic://three', 'windows', '1', 'present');")
+        INSERT INTO game_installations(id,entry_id,root_path_ref,platform,version,detection_state) VALUES ('i1', 'e1', 'synthetic://one', 'windows', '1', 'present'), ('i2', 'e1', 'synthetic://two', 'windows', '2', 'missing'), ('i3', 'e2', 'synthetic://three', 'windows', '1', 'present');")
         .execute(&mut c).await.unwrap();
     for sql in [
-        "INSERT INTO games VALUES ('g', 'Duplicate', 'duplicate', NULL, NULL, NULL, 0, 0, 0)",
+        "INSERT INTO games(id,title,sort_title,release_date,genre,developer,favorite,created_at_ms,updated_at_ms) VALUES ('g', 'Duplicate', 'duplicate', NULL, NULL, NULL, 0, 0, 0)",
         "INSERT INTO library_entries VALUES ('bad', 'absent', 'a', '2', 'playing', 0)",
         "INSERT INTO library_entries VALUES ('bad', 'g', 'absent', '2', 'playing', 0)",
         "INSERT INTO library_entries VALUES ('bad', 'g', 'a', '1', 'playing', 0)",
-        "INSERT INTO game_installations VALUES ('bad', 'absent', 'synthetic://bad', 'windows', '1', 'present')",
-        "INSERT INTO game_installations VALUES ('bad', 'e1', 'synthetic://one', 'windows', '1', 'present')",
+        "INSERT INTO game_installations(id,entry_id,root_path_ref,platform,version,detection_state) VALUES ('bad', 'absent', 'synthetic://bad', 'windows', '1', 'present')",
+        "INSERT INTO game_installations(id,entry_id,root_path_ref,platform,version,detection_state) VALUES ('bad', 'e1', 'synthetic://one', 'windows', '1', 'present')",
         "UPDATE game_installations SET detection_state = 'invalid'",
         "UPDATE games SET favorite = 2",
         "DELETE FROM games WHERE id = 'g'",
@@ -105,7 +105,7 @@ async fn bounded_pagination_and_tied_order_are_stable() {
     let db = Database::initialize(&path).await.unwrap();
     let mut c = raw(&path).await;
     for id in ["c", "a", "b"] {
-        sqlx::query("INSERT INTO games VALUES (?, 'Same title', 'same title', '2000-01-01', NULL, NULL, 0, 0, 0)").bind(id).execute(&mut c).await.unwrap();
+        sqlx::query("INSERT INTO games(id,title,sort_title,release_date,genre,developer,favorite,created_at_ms,updated_at_ms) VALUES (?, 'Same title', 'same title', '2000-01-01', NULL, NULL, 0, 0, 0)").bind(id).execute(&mut c).await.unwrap();
     }
     for sort in [SummarySort::Title, SummarySort::ReleaseDate] {
         let first = db
@@ -241,7 +241,7 @@ async fn checksum_and_newer_schema_fail_without_recreating_database() {
         let db = Database::initialize(&path).await.unwrap();
         db.close().await;
         let mut c = raw(&path).await;
-        sqlx::query("INSERT INTO games VALUES ('keep', 'Keep', 'keep', NULL, NULL, NULL, 0, 0, 0)")
+        sqlx::query("INSERT INTO games(id,title,sort_title,release_date,genre,developer,favorite,created_at_ms,updated_at_ms) VALUES ('keep', 'Keep', 'keep', NULL, NULL, NULL, 0, 0, 0)")
             .execute(&mut c)
             .await
             .unwrap();
@@ -282,7 +282,7 @@ async fn failing_migration_rolls_back_ddl_and_preserves_existing_records() {
     let db = Database::initialize(&path).await.unwrap();
     db.close().await;
     let mut c = raw(&path).await;
-    sqlx::query("INSERT INTO games VALUES ('keep', 'Keep', 'keep', NULL, NULL, NULL, 0, 0, 0)")
+    sqlx::query("INSERT INTO games(id,title,sort_title,release_date,genre,developer,favorite,created_at_ms,updated_at_ms) VALUES ('keep', 'Keep', 'keep', NULL, NULL, NULL, 0, 0, 0)")
         .execute(&mut c)
         .await
         .unwrap();
@@ -294,7 +294,12 @@ async fn failing_migration_rolls_back_ddl_and_preserves_existing_records() {
     )
     .unwrap();
     std::fs::write(
-        migration_dir.join("0002_failure.sql"),
+        migration_dir.join("0002_manual_library.sql"),
+        include_str!("../migrations/0002_manual_library.sql"),
+    )
+    .unwrap();
+    std::fs::write(
+        migration_dir.join("0003_failure.sql"),
         "CREATE TABLE should_rollback(id TEXT); INSERT INTO nonexistent VALUES (1);",
     )
     .unwrap();
@@ -320,7 +325,7 @@ async fn failing_migration_rolls_back_ddl_and_preserves_existing_records() {
     );
     c.close().await.unwrap();
     let db = Database::initialize(&path).await.unwrap();
-    assert_eq!(db.status().await.unwrap().schema_version, 1);
+    assert_eq!(db.status().await.unwrap().schema_version, 2);
     db.close().await;
 }
 

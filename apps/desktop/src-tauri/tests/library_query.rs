@@ -36,7 +36,7 @@ async fn fixture() -> (tempfile::TempDir, Database) {
     }
     sqlx::raw_sql("INSERT INTO library_sources VALUES ('s1','manual','Source One'),('s2','manual','Source Two');
         INSERT INTO library_entries VALUES ('a1','a','s1','1','playing',0),('a2','a','s2','1','playing',0),('b1','b','s1','2','playing',0),('c1','c','s2','3','playing',0);
-        INSERT INTO game_installations VALUES ('i1','a1','synthetic://missing','windows','1','missing'),('i2','a2','synthetic://present','windows','1','present');").execute(&mut c).await.unwrap();
+        INSERT INTO game_installations(id,entry_id,root_path_ref,platform,version,detection_state) VALUES ('i1','a1','synthetic://missing','windows','1','missing'),('i2','a2','synthetic://present','windows','1','present');").execute(&mut c).await.unwrap();
     c.close().await.unwrap();
     (dir, db)
 }
@@ -311,7 +311,7 @@ async fn presence_and_membership_writes_keep_exact_complements_and_global_summar
     .await
     .unwrap();
     // Multiple present copies, including two on one entry, must remain one row.
-    sqlx::raw_sql("INSERT INTO game_installations VALUES ('i3','a2','synthetic://second','windows',NULL,'present'),('i4','b1','synthetic://b','windows',NULL,'unknown');
+    sqlx::raw_sql("INSERT INTO game_installations(id,entry_id,root_path_ref,platform,version,detection_state) VALUES ('i3','a2','synthetic://second','windows',NULL,'present'),('i4','b1','synthetic://b','windows',NULL,'unknown');
         INSERT INTO library_entries VALUES ('b2','b','s2','4','playing',0);").execute(&mut writer).await.unwrap();
     for state in ["present", "missing", "unknown", "present"] {
         sqlx::query("UPDATE game_installations SET detection_state=? WHERE entry_id='a2'")
@@ -401,7 +401,7 @@ async fn wal_readers_observe_atomic_presence_batches_without_stale_counts() {
     )
     .await
     .unwrap();
-    sqlx::query("INSERT INTO game_installations VALUES ('ib','b1','synthetic://b','windows',NULL,'missing')").execute(&mut writer).await.unwrap();
+    sqlx::query("INSERT INTO game_installations(id,entry_id,root_path_ref,platform,version,detection_state) VALUES ('ib','b1','synthetic://b','windows',NULL,'missing')").execute(&mut writer).await.unwrap();
     let writes = tokio::spawn(async move {
         for turn in 0..80 {
             let mut transaction = writer.begin().await.unwrap();
@@ -464,7 +464,7 @@ async fn relationship_candidates_keep_global_summaries_across_presence_changes()
     )
     .await
     .unwrap();
-    sqlx::raw_sql("INSERT INTO game_installations VALUES ('i3','a2','synthetic://duplicate','windows',NULL,'present'),('i4','b1','synthetic://b','windows',NULL,'missing');")
+    sqlx::raw_sql("INSERT INTO game_installations(id,entry_id,root_path_ref,platform,version,detection_state) VALUES ('i3','a2','synthetic://duplicate','windows',NULL,'present'),('i4','b1','synthetic://b','windows',NULL,'missing');")
         .execute(&mut writer).await.unwrap();
     for state in ["missing", "present"] {
         sqlx::query("UPDATE game_installations SET detection_state=? WHERE entry_id='a2'")

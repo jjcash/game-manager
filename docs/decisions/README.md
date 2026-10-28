@@ -10,7 +10,7 @@ Reconciled 2026-10-25. Accepted architecture describes direction, not implemente
 | [ADR-004](ADR-004-virtualized-details-and-benchmark.md) | Accepted direction; budgets provisional | Details View, known reference hardware, release/stress validation                                       |
 | [ADR-005](ADR-005-external-first-trainers.md)           | Accepted future direction               | Game Tools and progressive trainers, external first                                                     |
 | [ADR-006](ADR-006-software-license.md)                  | Accepted                                | GPL-3.0-or-later for original software code; third-party licensing boundaries                           |
-| [ADR-007](ADR-007-conditional-m0-performance-gate.md)   | Proposed; user approval pending         | Conditional M0 closure policy, explicit exceptions and reopening conditions; original targets unchanged |
+| [ADR-007](ADR-007-conditional-m0-performance-gate.md)   | Accepted 2026-10-28         | Conditional M0 closure policy, explicit exceptions and reopening conditions; original targets unchanged |
 
 Exact mod target names and integration priorities are confirmed in [PRD](../specifications/PRD.md); they are not open decisions. Configurable grouping, Library + Mod Manager MVP, no Playnite migration, dark-first UI and built-in functionality before extensions are agreed product requirements recorded there and in the source register.
 

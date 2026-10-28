@@ -2,7 +2,7 @@
 
 A free and open-source, local-first Windows desktop game library, launcher, and integrated mod manager in early development. Large-library performance, safe mod operations, and a polished interface are core requirements.
 
-The desktop application in `apps/desktop/` has a Rust-backed virtualized Details View with title search, installation/source/year filters and title/release sorting. Pages and caching remain bounded, with keyboard selection, loading/error/retry states and opt-in synthetic diagnostics. M0.5 adds a compact thumbnail column with a bounded Rust synthetic-artwork service. M0.6 adds isolated synthetic background jobs, progress/cancellation and measured SQL/artwork contention; normal libraries remain unseeded. Mods and Settings remain placeholders. See [project status](docs/PROJECT_STATUS.md) and [M0.4 verification](docs/development/M0.4_VERIFICATION.md) for checks, measurements and limitations. See [M0.5 artwork verification](docs/development/M0.5_VERIFICATION.md) for ownership, cache/decode limits, deterministic fixture generation/cleanup and native artwork measurements.
+The desktop application in `apps/desktop/` provides a persistent manual game library in the existing virtualized Details View. **Add game** creates an independent canonical game and manual membership, with optional installation metadata. Select a row and choose **Manage selected game** to save metadata overrides, add/update/remove manual memberships, and record/edit/remove installation metadata. Removal confirmations describe the affected records; no game files are accessed. A fresh normal database is empty, and changes survive restart. See [M1.1 verification](docs/development/M1.1_VERIFICATION.md) for evidence and limits. Mods and Settings remain placeholders.
 
 The [M0.1 verification report](docs/development/M0.1_VERIFICATION.md) records the environment, exact dependency versions, checks, file inventory, and limitations.
 
@@ -10,7 +10,7 @@ The [M0.2 verification report](docs/development/M0.2_VERIFICATION.md) records th
 
 ## Read the documentation
 
-**M0.8 recommends conditional M0 closure with documented exceptions, pending explicit user approval. The gate remains open and M1 has not started.** The [gate-disposition report](docs/development/M0.8_GATE_DISPOSITION.md) preserves original targets, measured startup/query/pressure/frame/memory limitations, hardware gaps and the unexplained historical writer guard. [ADR-007](docs/decisions/ADR-007-conditional-m0-performance-gate.md) proposes the acceptance policy for review. No additional speculative SQL/startup work or automatic integration work is selected.
+**M0 is conditionally closed with accepted exceptions E1–E5; M1.1 is the verified manual-library foundation.** The user confirmed M0.8 CI and merge on 2026-10-28 and accepted [ADR-007](docs/decisions/ADR-007-conditional-m0-performance-gate.md). Original targets and the [M0.8 measurements](docs/development/M0.8_GATE_DISPOSITION.md) remain unchanged. Storefront importing, discovery, launching and mod work remain future scope.
 
 | Document                                                        | Purpose                                                       |
 | --------------------------------------------------------------- | ------------------------------------------------------------- |

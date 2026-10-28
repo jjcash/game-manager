@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-manual-get"
+description = "Enables the manual_get command without any pre-configured scope."
+commands.allow = ["manual_get"]
+
+[[permission]]
+identifier = "deny-manual-get"
+description = "Denies the manual_get command without any pre-configured scope."
+commands.deny = ["manual_get"]
