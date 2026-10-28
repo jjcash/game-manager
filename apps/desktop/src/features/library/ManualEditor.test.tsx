@@ -58,6 +58,18 @@ afterEach(() => {
   cleanup();
   vi.resetAllMocks();
 });
+it("keeps Tab and Shift+Tab inside the modal at both control boundaries", () => {
+  render(<ManualEditor gameId={null} changed={vi.fn()} close={vi.fn()} />);
+  const title = screen.getByLabelText("Title");
+  const close = screen.getByRole("button", { name: "Close editor" });
+  title.focus();
+  fireEvent.keyDown(title, { key: "Tab", shiftKey: true });
+  expect(document.activeElement).toBe(close);
+  fireEvent.keyDown(close, { key: "Tab" });
+  expect(document.activeElement).toBe(title);
+  fireEvent.keyDown(title, { key: "Escape" });
+  expect(document.activeElement).toBe(title);
+});
 it("creates a game with optional installation and preserves failed input", async () => {
   const changed = vi.fn(),
     close = vi.fn();

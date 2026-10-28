@@ -4,6 +4,8 @@ A free and open-source, local-first Windows desktop game library, launcher, and 
 
 The desktop application in `apps/desktop/` provides a persistent manual game library in the existing virtualized Details View. **Add game** creates an independent canonical game and manual membership, with optional installation metadata. Select a row and choose **Manage selected game** to save metadata overrides, add/update/remove manual memberships, and record/edit/remove installation metadata. Removal confirmations describe the affected records; no game files are accessed. A fresh normal database is empty, and changes survive restart. See [M1.1 verification](docs/development/M1.1_VERIFICATION.md) for evidence and limits. Mods and Settings remain placeholders.
 
+[M1.2 Steam discovery contract and fixtures](docs/development/M1.2_STEAM_DISCOVERY_VERIFICATION.md) investigate credentials-free local discovery without adding a production Steam reader or importer. Offline tests validate bounded manifest/folder parsing and conservative evidence rules: an installed or cached AppID does not prove account ownership. The proposed next separately authorized slice is an installed-app-only read-only preview; full uninstalled/account-owned library coverage is not claimed.
+
 The [M0.1 verification report](docs/development/M0.1_VERIFICATION.md) records the environment, exact dependency versions, checks, file inventory, and limitations.
 
 The [M0.2 verification report](docs/development/M0.2_VERIFICATION.md) records the SQLite schema, safety tests, dataset counts and actual database timings.

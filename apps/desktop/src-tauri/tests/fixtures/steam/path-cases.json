@@ -1,0 +1,47 @@
+{
+  "components": [
+    { "value": "Synthetic Game", "valid": true },
+    { "value": "架空 🎮", "valid": true },
+    { "value": "", "valid": false },
+    { "value": "..", "valid": false },
+    { "value": ".", "valid": false },
+    { "value": "..\\escape", "valid": false },
+    { "value": "nested/escape", "valid": false },
+    { "value": "C:\\outside", "valid": false },
+    { "value": "game:stream", "valid": false },
+    { "value": "CON.txt", "valid": false },
+    { "value": "LPT1", "valid": false },
+    { "value": "COM¹", "valid": false },
+    { "value": "CONOUT$", "valid": false },
+    { "value": "tail.", "valid": false },
+    { "value": "tail ", "valid": false },
+    { "value": "a\u0000b", "valid": false }
+  ],
+  "libraries": [
+    { "value": "C:\\Synthetic Steam", "valid": true },
+    { "value": "D:/SyntheticLibrary/", "valid": true },
+    { "value": "E:\\架空", "valid": true },
+    { "value": "C:\\", "valid": false },
+    { "value": "C:\\\\", "valid": false },
+    { "value": "C:relative", "valid": false },
+    { "value": "relative", "valid": false },
+    { "value": "\\\\server\\Steam", "valid": false },
+    { "value": "\\\\?\\C:\\Steam", "valid": false },
+    { "value": "\\\\.\\PhysicalDrive0", "valid": false },
+    { "value": "C:\\Steam\\..\\Other", "valid": false },
+    { "value": "C:\\Steam\\NUL", "valid": false }
+  ],
+  "metadata": [
+    { "value": "steamapps/libraryfolders.vdf", "valid": true },
+    { "value": "steamapps/appmanifest_410001.acf", "valid": true },
+    { "value": "steamapps/appmanifest_001.acf", "valid": false },
+    { "value": "steamapps/common/Game/game.exe", "valid": false },
+    { "value": "steamapps/../config/loginusers.vdf", "valid": false },
+    { "value": "config/loginusers.vdf", "valid": false },
+    { "value": "config/config.vdf", "valid": false },
+    { "value": "config/htmlcache/Cookies", "valid": false },
+    { "value": "appcache/appinfo.vdf", "valid": false },
+    { "value": "userdata/fictional/config/localconfig.vdf", "valid": false },
+    { "value": "C:\\elsewhere\\appmanifest_410001.acf", "valid": false }
+  ]
+}

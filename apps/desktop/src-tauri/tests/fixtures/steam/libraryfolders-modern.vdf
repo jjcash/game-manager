@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+"libraryfolders"
+{
+    "0" { "path" "C:\\FixtureSteam" "label" "Synthetic primary" "apps" { "410001" "1000" } }
+    "1" { "path" "D:\\FixtureLibrary" "label" "Synthetic secondary" "apps" { "410003" "2000" "410006" "3000" } }
+    "2" { "path" "c:\\fixturesteam\\" "apps" { "410001" "1000" } }
+}

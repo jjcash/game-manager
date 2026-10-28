@@ -14,6 +14,18 @@ Use an ordinary optimized executable for the production manual workflow. The run
 
 The query runner uses SQLite backup to create exclusively new application-purpose copies of the 15k/25k synthetic fixtures, runs schema-v1 baseline and schema-v2 ordinary builds in reversed order over two passes, and retains 20 warm full-summary/query/invoke samples per first/deep case after one warm-up. Exact repeated rows and page lengths are asserted. Original fixture hashes must match afterward. OS caches are retained, fresh WebView profiles are used per launch, and timings are finite service measurements without displayed-frame claims. Build/test work must finish before measuring. M0 reference databases, generator and historical migration remain v1; the application migrator adds v2 only to application databases. See [M1.1 verification](../docs/development/M1.1_VERIFICATION.md).
 
+## M1.2 Steam contract fixtures
+
+Run from `apps/desktop`:
+
+```powershell
+cargo test --manifest-path src-tauri/Cargo.toml --locked --test steam_discovery
+```
+
+These are synthetic, offline parser and policy tests, not a Steam scan or import benchmark. They do not open Steam roots, account/config/cache files, registry values, game directories or a production database. The support module is compiled only by the test target; known binary headers are deferred, not parsed. The [fixture inventory](../apps/desktop/src-tauri/tests/fixtures/steam/README.md) and [M1.2 report](../docs/development/M1.2_STEAM_DISCOVERY_VERIFICATION.md) distinguish parser correctness, untrusted cached hints, ownership uncertainty and native reader work still required.
+
+Keep all seed-42 references and M0 exceptions unchanged. Production isolation and the existing four-launch manual-library smoke remain applicable; use fresh disposable roots. M1.2 includes one small modal keyboard-boundary correction found by the existing native smoke, without weakening its assertions. No query, schema, resource policy or new storefront benchmark architecture is introduced.
+
 ## M0.7E relationship and deep-page investigation
 
 See [M0.7E verification](../docs/development/M0.7E_VERIFICATION.md) for the cost/benefit decision, dataset relevance and separate SQL/native boundaries. Finish builds/tests/fixture generation before collection. Use retained optimized binaries and new result roots; keep OS caches and ordinary desktop activity explicit.

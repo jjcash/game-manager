@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Invented fixture. No real account, installation or license data.
+"AppState"
+{
+    "appid" "410001"
+    "name" "星の Café — Synthetic %_ \"Adventure\" 🎮"
+    "StateFlags" "4"
+    "installdir" "Synthetic Adventure"
+    "buildid" "123456"
+    "LastOwner" "0"
+    "InstalledDepots" { "410002" { "manifest" "1111111111" } }
+}
