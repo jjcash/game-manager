@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: **M0 conditionally closed under accepted ADR-007 (2026-10-28), retaining exceptions E1–E5; M1.1 manual persistence and M1.2 Steam contract/fixtures are verified.** See [M1.2 evidence](development/M1.2_STEAM_DISCOVERY_VERIFICATION.md) and [PROJECT_STATUS](PROJECT_STATUS.md). Historical M0 sections record task-time decisions; original misses and release obligations remain. M1.3 and later work require separate authorization.
+Status: **M0 conditionally closed under accepted ADR-007 (2026-10-28), retaining exceptions E1–E5; M1.1 manual persistence and M1.2 Steam contract/fixtures are verified. M1.3 remains incomplete.** See [M1.2 evidence](development/M1.2_STEAM_DISCOVERY_VERIFICATION.md) and [PROJECT_STATUS](PROJECT_STATUS.md). Historical M0 sections record task-time decisions; original misses and release obligations remain. Accepted [ADR-008](decisions/ADR-008-steam-local-discovery-threat-model-b.md) records Steam discovery model B; M1.3C alone is authorized after that ADR merges into `main`, from a clean baseline containing it.
 
 ## M0 — Performance-validation prototype
 
@@ -176,6 +176,22 @@ After approval, recommend a separately authorized small M1 core library-foundati
 **Complete within scope, verified 2026-10-28:** local-source research, conservative installation/cache/ownership/account evidence, stable provider identity and user-override contracts, synthetic bounded parsers and adversarial fixtures. No production Steam read/import/write path or schema change. See [verification](development/M1.2_STEAM_DISCOVERY_VERIFICATION.md) for 17 contract tests, 46 frontend/54 default/77 benchmark-feature Rust tests, both native builds and persistence/isolation checks. A minimal modal Tab-boundary regression fix preserves the original native assertions. M0 E1–E5 remain accepted; M1.1 identity semantics remain intact.
 
 Recommended next **separately authorized** slice: M1.3 read-only installed-app discovery preview with native metadata-root permissions, Windows confinement/race tests, bounded paging, warnings and cancellation. No account-file reads, binary caches, networking, catalog commit or entitlement claim. A later persistent-import milestone needs explicit provider origins/mappings/value storage and tested v2 migration. No M1.3 work is authorized or started by this recommendation.
+
+### M1.3 — Steam read-only preview: incomplete
+
+The [M1.3 stop](development/M1.3_STEAM_PREVIEW_VERIFICATION.md), [M1.3A investigation](development/M1.3A_WINDOWS_READER_SECURITY.md) and [M1.3B decision review](development/M1.3B_STEAM_DISCOVERY_DECISION.md) remain historical evidence. No safe native reader, production Steam discovery IPC or preview is implemented or verified. Accepted [ADR-008](decisions/ADR-008-steam-local-discovery-threat-model-b.md) supersedes the stronger M1.2/M1.3A provenance confinement requirement **only for credentials-free local Steam installed-app discovery**. It excludes deliberate same-user sensitive-file substitution from the confidentiality guarantee and does not guarantee exclusive hard-link provenance; observed multiple links must still be rejected before content reads. Consent, native identity/no-reparse access, exact allowlists, read-only bounds, privacy and fail-closed behavior remain required.
+
+### M1.3C — Isolated Windows Steam Metadata Reader Feasibility
+
+**Authorized only after ADR-008 is merged into `main`, from a clean baseline containing the accepted ADR. Not started.** If it has not merged, prepare and verify the documentation changes, report and stop without committing, pushing, merging or starting M1.3C.
+
+- [ ] Build a small isolated Rust candidate for one explicitly selected disposable local NTFS root, native retained root identity, literal relative `steamapps` access and exact manifest leaves.
+- [ ] Verify no-reparse/conservative object validation, observed hard-link rejection before content reads, bounded existing-file read-only access, ordinary concurrent-update checks, cancellation and handle cleanup.
+- [ ] Exercise disposable junctions, symlinks where available, root replacement, hard links, locked/unlocked external sentinels, malformed paths, concurrent changes, limits and cancellation; distinguish attempted opens from actual content reads and record gaps.
+- [ ] Integrate the existing M1.2 manifest parser only after native access tests pass.
+- [ ] Record implementation, supported Windows/filesystem scope, actual native tests, untested cases, resources, quality checks, changed files and cost-benefit assessment in `docs/development/M1.3C_WINDOWS_READER_FEASIBILITY.md`; recommend exactly one of “Resume M1.3” or “Defer Steam local discovery” under ADR-008's criteria, then stop.
+
+No production UI/IPC, persistent grants, real Steam scanning, authentication/account access, game-directory traversal, migrations, importing/catalog writes or other storefront integrations. Manual-library architecture and M0 policy stay unchanged. No model A claim, automatic M1.3 resumption, later milestone, commit or push. M1.3 remains incomplete even if M1.3C succeeds; inconclusive evidence is not a successful reader.
 
 ### Broader remaining M1 scope
 
