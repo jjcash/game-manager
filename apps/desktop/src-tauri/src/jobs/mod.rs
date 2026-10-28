@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Synthetic, disposable job prototype. Not a production importer or durable queue.
+#[cfg(test)]
+mod acquisition_tests;
 pub mod fixtures;
 use crate::{
     scheduling::Budget,

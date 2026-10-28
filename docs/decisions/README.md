@@ -2,14 +2,15 @@
 
 Reconciled 2026-10-25. Accepted architecture describes direction, not implemented functionality or approval of every interface/schema sketch. [Source register](../SOURCE_AND_OPEN_DECISIONS.md) records recovered evidence and maps the original chat's preliminary eight ADR labels to ADR-001 through ADR-005. ADR-006 records the later accepted software-license decision.
 
-| Record | Status | Subject |
-| --- | --- | --- |
-| [ADR-001](ADR-001-hybrid-mod-deployment.md) | Accepted architecture | Universal mod core; copy first; launch-time activation; links/VFS later; ownership and recovery |
-| [ADR-002](ADR-002-installed-only-windows.md) | Accepted | Installed Windows only; portable dropped; configurable installed roots retained |
-| [ADR-003](ADR-003-core-stack-and-local-first.md) | Accepted architectural baseline | Core stack, SQLite source of truth, offline core, module ownership |
-| [ADR-004](ADR-004-virtualized-details-and-benchmark.md) | Accepted direction; budgets provisional | Details View, known reference hardware, release/stress validation |
-| [ADR-005](ADR-005-external-first-trainers.md) | Accepted future direction | Game Tools and progressive trainers, external first |
-| [ADR-006](ADR-006-software-license.md) | Accepted | GPL-3.0-or-later for original software code; third-party licensing boundaries |
+| Record                                                  | Status                                  | Subject                                                                                                 |
+| ------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [ADR-001](ADR-001-hybrid-mod-deployment.md)             | Accepted architecture                   | Universal mod core; copy first; launch-time activation; links/VFS later; ownership and recovery         |
+| [ADR-002](ADR-002-installed-only-windows.md)            | Accepted                                | Installed Windows only; portable dropped; configurable installed roots retained                         |
+| [ADR-003](ADR-003-core-stack-and-local-first.md)        | Accepted architectural baseline         | Core stack, SQLite source of truth, offline core, module ownership                                      |
+| [ADR-004](ADR-004-virtualized-details-and-benchmark.md) | Accepted direction; budgets provisional | Details View, known reference hardware, release/stress validation                                       |
+| [ADR-005](ADR-005-external-first-trainers.md)           | Accepted future direction               | Game Tools and progressive trainers, external first                                                     |
+| [ADR-006](ADR-006-software-license.md)                  | Accepted                                | GPL-3.0-or-later for original software code; third-party licensing boundaries                           |
+| [ADR-007](ADR-007-conditional-m0-performance-gate.md)   | Proposed; user approval pending         | Conditional M0 closure policy, explicit exceptions and reopening conditions; original targets unchanged |
 
 Exact mod target names and integration priorities are confirmed in [PRD](../specifications/PRD.md); they are not open decisions. Configurable grouping, Library + Mod Manager MVP, no Playnite migration, dark-first UI and built-in functionality before extensions are agreed product requirements recorded there and in the source register.
 
