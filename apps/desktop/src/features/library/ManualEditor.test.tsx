@@ -42,6 +42,7 @@ const details: Details = {
     },
   ],
   installations: [],
+  groups: [],
 };
 beforeEach(() => {
   HTMLDialogElement.prototype.showModal = function () {
@@ -153,6 +154,7 @@ it("keeps the last membership, supports multiple installations and removes metad
         version: null,
         detectionState: "present",
         stateOrigin: "user",
+        groupId: null,
       },
     ],
   });
@@ -215,4 +217,102 @@ it("shows details failures and leaves provider records read-only", async () => {
   render(<ManualEditor gameId="canonical" changed={vi.fn()} close={vi.fn()} />);
   await screen.findByText("Provider membership is read-only");
   expect(screen.queryByText("Remove manual game")).toBeNull();
+});
+
+it("organizes installations with explicit save, preserves conflict drafts and confirms ungrouping", async () => {
+  const d: Details = {
+    ...details,
+    groups: [
+      { id: "group-a", displayName: "日本語" },
+      { id: "group-b", displayName: "日本語" },
+    ],
+    installations: [
+      {
+        id: "copy",
+        entryId: "membership",
+        rootPathRef: "metadata://one",
+        platform: "windows",
+        version: null,
+        detectionState: "unknown",
+        stateOrigin: "legacy",
+        groupId: null,
+      },
+    ],
+  };
+  vi.mocked(getManual).mockResolvedValue(d);
+  render(<ManualEditor gameId="canonical" changed={vi.fn()} close={vi.fn()} />);
+  await screen.findByText(/Organize installation groups/);
+  fireEvent.click(screen.getByText(/Organize installation groups/));
+  fireEvent.change(screen.getByLabelText("Group name"), {
+    target: { value: "Unsaved 🎮" },
+  });
+  expect(mutateManual).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByText("Cancel group edit"));
+  expect((screen.getByLabelText("Group name") as HTMLInputElement).value).toBe(
+    "",
+  );
+  fireEvent.change(screen.getByLabelText("Group to edit"), {
+    target: { value: "group-b" },
+  });
+  fireEvent.change(screen.getByLabelText("Group name"), {
+    target: { value: "Renamed 🎮" },
+  });
+  vi.mocked(mutateManual).mockRejectedValueOnce(
+    new Error("Stale revision; reopen editor"),
+  );
+  fireEvent.click(screen.getByText("Save group name"));
+  await screen.findByText("Stale revision; reopen editor");
+  expect((screen.getByLabelText("Group name") as HTMLInputElement).value).toBe(
+    "Renamed 🎮",
+  );
+  expect(mutateManual).toHaveBeenLastCalledWith(
+    expect.objectContaining({ revision: 4 }),
+    { kind: "saveGroup", groupId: "group-b", displayName: "Renamed 🎮" },
+  );
+  fireEvent.change(screen.getByLabelText("Installation to organize"), {
+    target: { value: "copy" },
+  });
+  fireEvent.change(screen.getByLabelText("Assigned group"), {
+    target: { value: "group-a" },
+  });
+  expect(mutateManual).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByText("Save group assignment"));
+  await waitFor(() =>
+    expect(mutateManual).toHaveBeenLastCalledWith(expect.anything(), {
+      kind: "assignGroup",
+      installationId: "copy",
+      groupId: "group-a",
+    }),
+  );
+  await waitFor(() =>
+    expect(screen.getByText("Remove group").matches(":disabled")).toBe(false),
+  );
+  fireEvent.click(screen.getByText("Remove group"));
+  expect(screen.getByRole("alertdialog").textContent).toContain(
+    "become ungrouped",
+  );
+  expect(document.activeElement).toBe(screen.getByText("Keep records"));
+  fireEvent.keyDown(screen.getByText("Keep records"), { key: "Tab" });
+  expect(document.activeElement).toBe(screen.getByText("Confirm removal"));
+  fireEvent.click(screen.getByText("Keep records"));
+  expect(screen.queryByRole("alertdialog")).toBeNull();
+  expect(mutateManual).toHaveBeenCalledTimes(2);
+});
+it("rejects a late bounded-details response after the editor unmounts", async () => {
+  let resolve!: (value: Details) => void;
+  vi.mocked(getManual).mockReturnValueOnce(
+    new Promise((r) => {
+      resolve = r;
+    }),
+  );
+  const changed = vi.fn();
+  const editor = render(
+    <ManualEditor gameId="canonical" changed={changed} close={vi.fn()} />,
+  );
+  await waitFor(() => expect(getManual).toHaveBeenCalled());
+  editor.unmount();
+  resolve(details);
+  await Promise.resolve();
+  expect(changed).not.toHaveBeenCalled();
+  expect(screen.queryByRole("dialog")).toBeNull();
 });

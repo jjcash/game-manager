@@ -28,7 +28,7 @@ async fn fresh_migrations_empty_behavior_and_reopen_preserve_records() {
     let path = dir.path().join("library.sqlite3");
     let db = Database::initialize(&path).await.unwrap();
     let status = db.status().await.unwrap();
-    assert_eq!(status.schema_version, 2);
+    assert_eq!(status.schema_version, 3);
     assert_eq!(status.journal_mode, "wal");
     assert!(status.foreign_keys);
     assert_eq!(status.pool_limit, 4);
@@ -53,7 +53,7 @@ async fn fresh_migrations_empty_behavior_and_reopen_preserve_records() {
             .fetch_one(&mut conn)
             .await
             .unwrap(),
-        2
+        3
     );
     conn.close().await.unwrap();
 }
@@ -299,7 +299,12 @@ async fn failing_migration_rolls_back_ddl_and_preserves_existing_records() {
     )
     .unwrap();
     std::fs::write(
-        migration_dir.join("0003_failure.sql"),
+        migration_dir.join("0003_installation_groups.sql"),
+        include_str!("../migrations/0003_installation_groups.sql"),
+    )
+    .unwrap();
+    std::fs::write(
+        migration_dir.join("0004_failure.sql"),
         "CREATE TABLE should_rollback(id TEXT); INSERT INTO nonexistent VALUES (1);",
     )
     .unwrap();
@@ -325,7 +330,7 @@ async fn failing_migration_rolls_back_ddl_and_preserves_existing_records() {
     );
     c.close().await.unwrap();
     let db = Database::initialize(&path).await.unwrap();
-    assert_eq!(db.status().await.unwrap().schema_version, 2);
+    assert_eq!(db.status().await.unwrap().schema_version, 3);
     db.close().await;
 }
 

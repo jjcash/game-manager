@@ -3,7 +3,9 @@ param(
  [Parameter(Mandatory=$true)][string]$ResultsDirectory,
  [Parameter(Mandatory=$true)][string]$BaselineExecutable,
  [string]$DatabaseDirectory,
- [string]$Executable
+ [string]$Executable,
+ [ValidateRange(1,100)][int]$BaselineSchema=1,
+ [ValidateRange(1,100)][int]$CandidateSchema=2
 )
 $ErrorActionPreference='Stop'
 if(!$DatabaseDirectory){$DatabaseDirectory=Join-Path $PSScriptRoot 'data/m0.2-2026-10-25-01'}
@@ -32,9 +34,10 @@ try {
     if($LASTEXITCODE -ne 0){throw 'Fixture copy failed'}
     $env:GAME_MANAGER_DATA_DIR=Join-Path $run 'application';$env:WEBVIEW2_USER_DATA_FOLDER=Join-Path $run 'webview-profile'
     $binary=if($version -eq 1){$BaselineExecutable}else{$Executable}
+    $expectedSchema=if($version -eq 1){$BaselineSchema}else{$CandidateSchema}
     $app=Start-Process -FilePath ([IO.Path]::GetFullPath($binary)) -WindowStyle Hidden -PassThru -RedirectStandardError "$run/stderr.txt"
     try {
-     & node "$PSScriptRoot/frontend-manual-query.mjs" 'http://127.0.0.1:9223' "$run/query.json" $version
+     & node "$PSScriptRoot/frontend-manual-query.mjs" 'http://127.0.0.1:9223' "$run/query.json" $expectedSchema
      if($LASTEXITCODE -ne 0){throw 'Application query regression failed'}
     } finally {$app.Refresh();if(!$app.HasExited){$null=$app.CloseMainWindow();$null=$app.WaitForExit(10000)};if(!$app.HasExited){throw 'App did not close normally'}}
    }

@@ -26,6 +26,11 @@ export interface Installation extends InstallationInput {
   id: string;
   entryId: string;
   stateOrigin: string;
+  groupId: string | null;
+}
+export interface InstallationGroup {
+  id: string;
+  displayName: string;
 }
 export interface Details {
   id: string;
@@ -35,6 +40,7 @@ export interface Details {
   overriddenFields: string[];
   entries: Entry[];
   installations: Installation[];
+  groups: InstallationGroup[];
 }
 export type Action =
   | { kind: "metadata"; metadata: Metadata }
@@ -48,6 +54,9 @@ export type Action =
       installation: InstallationInput;
     }
   | { kind: "removeInstallation"; installationId: string }
+  | { kind: "saveGroup"; groupId: string | null; displayName: string }
+  | { kind: "assignGroup"; installationId: string; groupId: string | null }
+  | { kind: "removeGroup"; groupId: string }
   | { kind: "removeGame" };
 
 export function validateMetadata(v: Metadata) {
@@ -137,6 +146,19 @@ export async function getManual(gameId: string) {
     value.entries.length > 100 ||
     !Array.isArray(value.installations) ||
     value.installations.length > 100 ||
+    !Array.isArray(value.groups) ||
+    value.groups.length > 100 ||
+    value.groups.some(
+      (g) =>
+        !g ||
+        typeof g.id !== "string" ||
+        !g.id ||
+        typeof g.displayName !== "string" ||
+        !g.displayName.trim() ||
+        Array.from(g.displayName).length > 80 ||
+        /\p{Cc}/u.test(g.displayName),
+    ) ||
+    new Set(value.groups.map((g) => g.id)).size !== value.groups.length ||
     !Array.isArray(value.overriddenFields) ||
     value.overriddenFields.length > 5 ||
     value.overriddenFields.some(
@@ -165,7 +187,8 @@ export async function getManual(gameId: string) {
         typeof i.platform !== "string" ||
         (i.version !== null && typeof i.version !== "string") ||
         !["present", "missing", "unknown"].includes(i.detectionState) ||
-        !["legacy", "user"].includes(i.stateOrigin),
+        !["legacy", "user"].includes(i.stateOrigin) ||
+        (i.groupId !== null && !value.groups.some((g) => g.id === i.groupId)),
     )
   )
     throw new LibraryError(
@@ -187,6 +210,7 @@ export function createManual(
   });
 }
 export function mutateManual(details: Details, action: Action) {
+  if (action.kind === "saveGroup") validateGroupName(action.displayName);
   if (action.kind === "addEntry") validateSource(action.sourceName);
   if (action.kind === "metadata") validateMetadata(action.metadata);
   if (action.kind === "saveInstallation")
@@ -194,6 +218,18 @@ export function mutateManual(details: Details, action: Action) {
   return call<null>("manual_mutate", {
     request: { gameId: details.id, expectedRevision: details.revision, action },
   });
+}
+
+export function validateGroupName(value: string) {
+  if (
+    !value.trim() ||
+    Array.from(value.trim()).length > 80 ||
+    /\p{Cc}/u.test(value)
+  )
+    throw new LibraryError(
+      "INVALID_REQUEST",
+      "Enter a group name of 1–80 characters without control characters.",
+    );
 }
 
 function validateSource(value: string) {

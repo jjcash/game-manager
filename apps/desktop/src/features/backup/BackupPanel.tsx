@@ -73,7 +73,8 @@ function Confirmation({
       <p id="restore-consequences">
         This replaces your entire library with the validated backup (
         {candidate.snapshot.counts.games.toLocaleString()} games). Records are
-        not merged. Unsaved edits will be lost. Game files are never changed.
+        not merged. Installation groups are replaced too. Unsaved edits will be
+        lost. Game files are never changed.
       </p>
       <p className="muted mt-3">
         A verified copy of your current library will be preserved. The library
@@ -287,6 +288,13 @@ export function BackupPanel() {
               {(candidate.snapshot.bytes / 1024 / 1024).toFixed(2)} MiB.
               Restoring replaces your entire current library after restart.
             </p>
+            {candidate.snapshot.schemaVersion === 2 && (
+              <p>
+                This older backup has no installation groups. Its restored
+                library upgrades automatically; the selected backup stays
+                unchanged.
+              </p>
+            )}
             <button
               type="button"
               disabled={!!busy}

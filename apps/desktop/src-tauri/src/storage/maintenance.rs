@@ -146,28 +146,38 @@ async fn schema(c: &mut SqliteConnection) -> Result<Schema> {
     .fetch_all(c)
     .await?)
 }
-async fn expected_schema() -> Result<&'static Schema> {
-    static SCHEMA: tokio::sync::OnceCell<Schema> = tokio::sync::OnceCell::const_new();
-    SCHEMA
+async fn expected_schema(version: usize) -> Result<&'static Schema> {
+    // Preserve the exact historical v2 schema gate; do not migrate a selected file
+    // or its preserved candidate merely to determine compatibility.
+    static SCHEMAS: tokio::sync::OnceCell<Vec<Schema>> = tokio::sync::OnceCell::const_new();
+    let schemas = SCHEMAS
         .get_or_try_init(|| async {
-            let mut c = SqliteConnection::connect("sqlite::memory:").await?;
-            MIGRATOR
-                .run_direct(None, &mut c, false)
-                .await
-                .map_err(|_| {
-                    error(
-                        ErrorCode::Migration,
-                        "Embedded application schema could not be initialized.",
-                    )
-                })?;
-            let expected = schema(&mut c).await?;
-            c.close().await?;
-            Ok(expected)
+            let mut result = Vec::new();
+            for count in [2, 3] {
+                let mut c = SqliteConnection::connect("sqlite::memory:").await?;
+                let migrator = sqlx::migrate::Migrator {
+                    migrations: std::borrow::Cow::Borrowed(&MIGRATOR.migrations[..count]),
+                    ..sqlx::migrate::Migrator::DEFAULT
+                };
+                migrator
+                    .run_direct(None, &mut c, false)
+                    .await
+                    .map_err(|_| {
+                        error(
+                            ErrorCode::Migration,
+                            "Embedded application schema could not be initialized.",
+                        )
+                    })?;
+                result.push(schema(&mut c).await?);
+                c.close().await?;
+            }
+            Ok::<_, StorageError>(result)
         })
-        .await
+        .await?;
+    Ok(&schemas[version - 2])
 }
-/// Only standalone current-schema snapshots are supported. Read-only immutable access
-/// is used solely on our private copy, never a potentially live selected database.
+/// Standalone exact application schemas v2 and v3 are supported. Validation is
+/// read-only; only an installed active copy is upgraded by ordinary initialization.
 pub async fn validate_snapshot(path: &Path) -> Result<Snapshot> {
     if tokio::fs::metadata(path).await.map_err(io)?.len() > MAX_SNAPSHOT_BYTES {
         return Err(error(
@@ -221,10 +231,11 @@ async fn validate_connection(c: &mut SqliteConnection, path: &Path) -> Result<Sn
         ));
     }
     let history: Vec<(i64, bool, Vec<u8>)> =
-        sqlx::query_as("SELECT version,success=1,substr(checksum,1,64) FROM _sqlx_migrations ORDER BY version LIMIT 3")
+        sqlx::query_as("SELECT version,success=1,substr(checksum,1,64) FROM _sqlx_migrations ORDER BY version LIMIT 4")
             .fetch_all(&mut *c)
             .await?;
-    if history.len() != MIGRATOR.iter().count()
+    let version = history.len();
+    if !matches!(version, 2 | 3)
         || history
             .iter()
             .zip(MIGRATOR.iter())
@@ -232,10 +243,10 @@ async fn validate_connection(c: &mut SqliteConnection, path: &Path) -> Result<Sn
     {
         return Err(error(
             ErrorCode::Migration,
-            "Backup schema or migration history is incompatible with this build. Only the current application schema is supported; keep the backup for a compatible version.",
+            "Backup schema or migration history is incompatible with this build. Supported application schemas are v2 and v3; keep the backup for a compatible version.",
         ));
     }
-    if schema(c).await? != *expected_schema().await? {
+    if schema(c).await? != *expected_schema(version).await? {
         return Err(error(
             ErrorCode::InvalidDatabase,
             "Backup tables, indexes or schema do not match the application. File preserved.",
@@ -257,11 +268,21 @@ async fn validate_connection(c: &mut SqliteConnection, path: &Path) -> Result<Sn
             "Backup integrity, relationships or explicit metadata overrides are invalid. File preserved.",
         ));
     }
+    if version == 3 {
+        let invalid_group: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM installation_group_members m JOIN installation_groups g ON g.id=m.group_id JOIN game_installations i ON i.id=m.installation_id JOIN library_entries e ON e.id=i.entry_id WHERE g.game_id<>e.game_id)")
+            .fetch_one(&mut *c).await?;
+        if invalid_group {
+            return Err(error(
+                ErrorCode::InvalidDatabase,
+                "Installation group relationships are invalid. File preserved.",
+            ));
+        }
+    }
     let counts = sqlx::query_as("SELECT (SELECT count(*) FROM games) AS games,(SELECT count(*) FROM library_sources) AS library_sources,(SELECT count(*) FROM library_entries) AS library_entries,(SELECT count(*) FROM game_installations) AS installations").fetch_one(&mut *c).await?;
     Ok(Snapshot {
         format_version: 1,
         application_version: env!("CARGO_PKG_VERSION"),
-        schema_version: MIGRATOR.iter().last().expect("embedded migrations").version,
+        schema_version: version as i64,
         bytes: tokio::fs::metadata(path).await.map_err(io)?.len(),
         counts,
     })

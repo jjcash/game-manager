@@ -100,6 +100,31 @@ try {
         },
       },
     });
+    // V3 grouping must round-trip with every original M1.4 assertion intact.
+    d = await invoke("manual_get", { gameId: ids[0] });
+    await invoke("manual_mutate", {
+      request: {
+        gameId: d.id,
+        expectedRevision: d.revision,
+        action: {
+          kind: "saveGroup",
+          groupId: null,
+          displayName: "Backup copies 🎮",
+        },
+      },
+    });
+    d = await invoke("manual_get", { gameId: ids[0] });
+    await invoke("manual_mutate", {
+      request: {
+        gameId: d.id,
+        expectedRevision: d.revision,
+        action: {
+          kind: "assignGroup",
+          installationId: d.installations[0].id,
+          groupId: d.groups[0].id,
+        },
+      },
+    });
     const expected = { ids, details: await details(ids) };
     await writeFile(manifest, JSON.stringify(expected, null, 2), {
       flag: "wx",
@@ -144,6 +169,31 @@ try {
         action: {
           kind: "metadata",
           metadata: { ...metadata, title: "Current library edit after backup" },
+        },
+      },
+    });
+    // Make organization differ too, so restoration must recover its backed-up state.
+    d = await invoke("manual_get", { gameId: ids[0] });
+    await invoke("manual_mutate", {
+      request: {
+        gameId: d.id,
+        expectedRevision: d.revision,
+        action: {
+          kind: "saveGroup",
+          groupId: d.groups[0].id,
+          displayName: "Changed after backup",
+        },
+      },
+    });
+    d = await invoke("manual_get", { gameId: ids[0] });
+    await invoke("manual_mutate", {
+      request: {
+        gameId: d.id,
+        expectedRevision: d.revision,
+        action: {
+          kind: "assignGroup",
+          installationId: d.installations[0].id,
+          groupId: null,
         },
       },
     });

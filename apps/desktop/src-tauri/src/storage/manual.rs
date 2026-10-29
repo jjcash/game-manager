@@ -161,6 +161,17 @@ pub enum Action {
     RemoveInstallation {
         installation_id: String,
     },
+    SaveGroup {
+        group_id: Option<String>,
+        display_name: String,
+    },
+    AssignGroup {
+        installation_id: String,
+        group_id: Option<String>,
+    },
+    RemoveGroup {
+        group_id: String,
+    },
     RemoveGame,
 }
 #[derive(Debug, Serialize, FromRow)]
@@ -182,6 +193,13 @@ pub struct Installation {
     pub version: Option<String>,
     pub detection_state: String,
     pub state_origin: String,
+    pub group_id: Option<String>,
+}
+#[derive(Debug, Serialize, FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallationGroup {
+    pub id: String,
+    pub display_name: String,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -193,6 +211,7 @@ pub struct Details {
     pub overridden_fields: Vec<String>,
     pub entries: Vec<Entry>,
     pub installations: Vec<Installation>,
+    pub groups: Vec<InstallationGroup>,
 }
 async fn id(c: &mut SqliteConnection) -> Result<String> {
     Ok(sqlx::query_scalar("SELECT lower(hex(randomblob(16)))")
@@ -221,11 +240,35 @@ async fn application(c: &mut SqliteConnection) -> Result<()> {
     Ok(())
 }
 async fn bounded(c: &mut SqliteConnection, game: &str) -> Result<()> {
-    let (entries, installs): (i64,i64) = sqlx::query_as("SELECT (SELECT count(*) FROM library_entries WHERE game_id=?), (SELECT count(*) FROM game_installations i JOIN library_entries e ON e.id=i.entry_id WHERE e.game_id=?)").bind(game).bind(game).fetch_one(c).await?;
+    let (entries, installs): (i64,i64) = sqlx::query_as("SELECT (SELECT count(*) FROM library_entries WHERE game_id=?), (SELECT count(*) FROM game_installations i JOIN library_entries e ON e.id=i.entry_id WHERE e.game_id=?)").bind(game).bind(game).fetch_one(&mut *c).await?;
     if entries > MAX_RELATED || installs > MAX_RELATED {
         return Err(invalid(
             "Manual editor supports at most 100 memberships and 100 installation records per game",
         ));
+    }
+    let groups: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM installation_groups WHERE game_id=?")
+            .bind(game)
+            .fetch_one(c)
+            .await?;
+    if groups > MAX_RELATED {
+        return Err(invalid(
+            "Manual editor supports at most 100 installation groups per game",
+        ));
+    }
+    Ok(())
+}
+async fn own_group(c: &mut SqliteConnection, game: &str, group: &str) -> Result<()> {
+    text(group, 128, true)?;
+    let exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM installation_groups WHERE id=? AND game_id=?)",
+    )
+    .bind(group)
+    .bind(game)
+    .fetch_one(c)
+    .await?;
+    if !exists {
+        return Err(missing());
     }
     Ok(())
 }
@@ -348,7 +391,13 @@ impl Database {
         .fetch_all(&mut *tx)
         .await?;
         let entries = sqlx::query_as("SELECT e.id,e.source_id,s.display_name AS source_name,s.source_type,e.completion_status FROM library_entries e JOIN library_sources s ON s.id=e.source_id WHERE game_id=? ORDER BY e.added_at_ms,e.id LIMIT 100").bind(game).fetch_all(&mut *tx).await?;
-        let installations = sqlx::query_as("SELECT i.* FROM game_installations i JOIN library_entries e ON e.id=i.entry_id WHERE e.game_id=? ORDER BY i.id LIMIT 100").bind(game).fetch_all(&mut *tx).await?;
+        let installations = sqlx::query_as("SELECT i.*,m.group_id FROM game_installations i JOIN library_entries e ON e.id=i.entry_id LEFT JOIN installation_group_members m ON m.installation_id=i.id WHERE e.game_id=? ORDER BY i.id LIMIT 100").bind(game).fetch_all(&mut *tx).await?;
+        let groups = sqlx::query_as(
+            "SELECT id,display_name FROM installation_groups WHERE game_id=? ORDER BY id LIMIT 100",
+        )
+        .bind(game)
+        .fetch_all(&mut *tx)
+        .await?;
         tx.commit().await?;
         Ok(Details {
             id: game.into(),
@@ -358,6 +407,7 @@ impl Database {
             overridden_fields,
             entries,
             installations,
+            groups,
         })
     }
     pub async fn manual_create(&self, request: &CreateRequest) -> Result<String> {
@@ -407,6 +457,60 @@ impl Database {
         }
         bounded(&mut tx, game).await?;
         match &request.action {
+            Action::SaveGroup {
+                group_id,
+                display_name,
+            } => {
+                let name = text(display_name, 80, true)?;
+                if let Some(gid) = group_id {
+                    own_group(&mut tx, game, gid).await?;
+                    sqlx::query("UPDATE installation_groups SET display_name=? WHERE id=?")
+                        .bind(name)
+                        .bind(gid)
+                        .execute(&mut *tx)
+                        .await?;
+                } else {
+                    let gid = id(&mut tx).await?;
+                    sqlx::query(
+                        "INSERT INTO installation_groups(id,game_id,display_name) VALUES (?,?,?)",
+                    )
+                    .bind(gid)
+                    .bind(game)
+                    .bind(name)
+                    .execute(&mut *tx)
+                    .await?;
+                }
+            }
+            Action::AssignGroup {
+                installation_id,
+                group_id,
+            } => {
+                text(installation_id, 128, true)?;
+                let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM game_installations i JOIN library_entries e ON e.id=i.entry_id WHERE i.id=? AND e.game_id=?)")
+                    .bind(installation_id).bind(game).fetch_one(&mut *tx).await?;
+                if !exists {
+                    return Err(missing());
+                }
+                // Organization is user-owned even for a read-only provider installation.
+                // Do not change its metadata, state origin or membership provenance.
+                if let Some(gid) = group_id {
+                    own_group(&mut tx, game, gid).await?;
+                    sqlx::query("INSERT INTO installation_group_members(installation_id,group_id) VALUES (?,?) ON CONFLICT(installation_id) DO UPDATE SET group_id=excluded.group_id")
+                        .bind(installation_id).bind(gid).execute(&mut *tx).await?;
+                } else {
+                    sqlx::query("DELETE FROM installation_group_members WHERE installation_id=?")
+                        .bind(installation_id)
+                        .execute(&mut *tx)
+                        .await?;
+                }
+            }
+            Action::RemoveGroup { group_id } => {
+                own_group(&mut tx, game, group_id).await?;
+                sqlx::query("DELETE FROM installation_groups WHERE id=?")
+                    .bind(group_id)
+                    .execute(&mut *tx)
+                    .await?;
+            }
             Action::Metadata { metadata: value } => metadata(&mut tx, game, value).await?,
             Action::AddEntry { source_name } => entry(&mut tx, game, source_name).await?,
             Action::UpdateEntry {

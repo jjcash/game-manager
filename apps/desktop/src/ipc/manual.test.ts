@@ -6,6 +6,9 @@ import {
   getManual,
   validateInstallation,
   validateMetadata,
+  validateGroupName,
+  mutateManual,
+  type Details,
 } from "./manual";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const metadata = {
@@ -60,4 +63,73 @@ it("uses narrow create arguments and preserves structured errors", async () => {
   await expect(getManual("stable-id")).rejects.toMatchObject({
     code: "INVALID_RESPONSE",
   });
+});
+
+it("validates bounded group associations and sends stable IDs with the game revision", async () => {
+  for (const name of ["", " ", "bad\u0000name", "x".repeat(81)])
+    expect(() => validateGroupName(name)).toThrow();
+  expect(() => validateGroupName("日本語 🎮")).not.toThrow();
+  const value: Details = {
+    id: "game",
+    revision: 7,
+    origin: "manual",
+    metadata,
+    overriddenFields: [],
+    entries: [
+      {
+        id: "e",
+        sourceId: "s",
+        sourceName: "Manual",
+        sourceType: "manual",
+        completionStatus: "not_started",
+      },
+    ],
+    installations: [
+      {
+        id: "i",
+        entryId: "e",
+        rootPathRef: "opaque",
+        platform: "windows",
+        version: null,
+        detectionState: "unknown",
+        stateOrigin: "legacy",
+        groupId: "g",
+      },
+    ],
+    groups: [
+      { id: "g", displayName: "Same" },
+      { id: "other", displayName: "Same" },
+    ],
+  };
+  vi.mocked(invoke).mockResolvedValueOnce(value);
+  expect(await getManual("game")).toEqual(value);
+  vi.mocked(invoke).mockResolvedValueOnce(null);
+  await mutateManual(value, {
+    kind: "assignGroup",
+    installationId: "i",
+    groupId: null,
+  });
+  expect(invoke).toHaveBeenLastCalledWith("manual_mutate", {
+    request: {
+      gameId: "game",
+      expectedRevision: 7,
+      action: { kind: "assignGroup", installationId: "i", groupId: null },
+    },
+  });
+  for (const bad of [
+    { ...value, groups: [] },
+    {
+      ...value,
+      groups: Array.from({ length: 101 }, (_, i) => ({
+        id: String(i),
+        displayName: "Name",
+      })),
+    },
+    { ...value, groups: [value.groups[0], value.groups[0]] },
+  ]) {
+    vi.mocked(invoke).mockResolvedValueOnce(bad);
+    await expect(getManual("game")).rejects.toMatchObject({
+      code: "INVALID_RESPONSE",
+    });
+  }
 });

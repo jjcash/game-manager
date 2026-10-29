@@ -619,3 +619,20 @@ h1 {
 .backup-panel [role="alert"] {
   color: #f4c28a;
 }
+
+.installation-groups {
+  border: 1px solid #3a484e;
+  border-radius: 5px;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+.installation-groups summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.installation-groups p {
+  margin-top: 10px;
+}
+.installation-groups select {
+  max-width: 100%;
+}

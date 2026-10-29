@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Assert v1/v2 projection equivalence and summarize finite warm native samples."""
+"""Assert two-artifact projection equivalence; v1/v2 labels denote artifact slots."""
 import json
 import math
 from pathlib import Path

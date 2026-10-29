@@ -32,3 +32,5 @@ The exact integration priority is Steam, GOG, Epic Games, Ubisoft Connect, EA Ap
 **Historical documentation placement verified.** The original 15-document reconciliation placed AGENTS.md and README.md at the root; status, roadmap and source register under docs/; the four specifications under docs/specifications/; and the index plus five original ADRs under docs/decisions/. Later development reports and ADR-006 extend that inventory; the original count is not a current repository file count.
 
 Source: [Game Manager Annotations Review](https://chatgpt.com/c/6add59c2-80bc-83ea-a64e-e890c3f606f6), recovered and reconciled in the preceding documentation correction.
+
+[ADR-010](ADR-010-installation-grouping-and-launch-profile-identity.md) records M1.5's per-game installation grouping, the exact v2/v3 backup compatibility extension and a separately reviewable future LaunchProfile identity/lifecycle contract. It does not authorize launching or add production profile persistence.
