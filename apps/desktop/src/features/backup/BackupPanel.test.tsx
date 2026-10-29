@@ -103,7 +103,11 @@ it("validates before confirmation, explains replacement, traps Tab and cancels w
     await screen.findByRole("button", { name: "Review replacement…" }),
   );
   const dialog = await screen.findByRole("dialog");
+  expect(
+    screen.getByText(/older backup has no installation groups/),
+  ).toBeTruthy();
   expect(dialog.textContent).toContain("Records are not merged");
+  expect(dialog.textContent).toContain("Installation groups are replaced too");
   expect(dialog.textContent).toContain("verified copy of your current library");
   const confirm = screen.getByRole("button", {
     name: "Confirm library replacement",

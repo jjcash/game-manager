@@ -205,9 +205,21 @@ Explicitly authorized after deferring Steam discovery, from merged M1.3C closeou
 
 No cloud, schedules, provider discovery/importing, launching or mod management. Retain M0 E1–E5 and all historical Steam research. No commit, push, merge or later milestone is authorized.
 
+### M1.5 - Installation grouping and LaunchProfile identity contract
+
+**Locally complete and verified 2026-10-29**, separately authorized from merged M1.4 `8ce5b51`. See [verification](development/M1.5_INSTALLATION_GROUPING_VERIFICATION.md) and [ADR-010](decisions/ADR-010-installation-grouping-and-launch-profile-identity.md).
+
+- [x] Stable per-game user groups across memberships, one/zero groups per installation, explicit create/rename/assign/unassign/removal and restart persistence.
+- [x] Forward application schema v3 with populated-v2 preservation, exact v2/v3 backup compatibility and active-copy-only upgrade/recovery; frozen benchmarks remain v1.
+- [x] Compact bounded editor, conflict/focus/cancellation behavior, provider/override/presence preservation and metadata-only deletion.
+- [x] Separate installation-bound LaunchProfile identity/lifecycle/default/revision contract with deterministic test-only associations; no production launch schema or engine.
+- [x] 56 frontend/79 default/102 feature Rust tests, both warnings-denied Clippy configurations, both optimized Windows builds, native restart/backup/isolation and 15k/25k query/browsing regressions; six frozen fixture hashes unchanged.
+
+M1.5 remains uncommitted with no new GitHub CI claim. M1.3 remains incomplete and Steam discovery deferred; M0 exceptions remain accepted. No commit, push, merge or subsequent milestone automatically.
+
 ### Broader remaining M1 scope
 
-Extend the verified Game, LibraryEntry and Installation foundation with separately authorized LaunchProfile identity, configurable grouping, initial Steam import, basic settings and artwork storage. Preserve explicit user overrides, canonical identity and bounded queries; make future imports idempotent.
+Extend the verified Game, LibraryEntry, Installation and grouping foundation with separately authorized LaunchProfile persistence/configuration under ADR-010, basic settings and artwork storage. Initial Steam import still depends on separately resolving the deferred reader gate. Preserve explicit user overrides, canonical identity and bounded queries; make future imports idempotent.
 
 Exit: records persist through restart; repeated imports do not duplicate entries or erase local edits; browsing remains responsive. The proposed detailed DSS must become tested migrations rather than being assumed production SQL.
 

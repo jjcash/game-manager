@@ -26,3 +26,7 @@ There is no atomic multi-file replacement claim. Unconfirmed copies have a separ
 - File flushes and process-interruption tests do not prove behavior under arbitrary media failure, lost OS writes or actual power cuts. Missing/corrupt recovery data is a surfaced recovery-required condition.
 
 No cloud service, encryption, compression, backup schedule, provider, game-file access, database migration, alternative framework or new package version is introduced. `tempfile` and the already locked Windows bindings gain narrowly scoped runtime uses.
+
+## M1.5 compatibility extension
+
+[ADR-010](ADR-010-installation-grouping-and-launch-profile-identity.md) extends the initial exact-v2 gate to exact application schemas v2 and v3. Validation retains the exact historical schema/checksum gates. Only the installed active copy upgrades; selected and preserved recovery snapshots remain unchanged. The restart, original-preservation, completion and recovery protocol above is retained. See the [M1.5 report](../development/M1.5_INSTALLATION_GROUPING_VERIFICATION.md) for compatibility and regression evidence.

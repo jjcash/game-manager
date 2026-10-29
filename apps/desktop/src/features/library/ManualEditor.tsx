@@ -10,6 +10,7 @@ import {
   type Metadata,
 } from "../../ipc/manual";
 import { pageGate } from "./requestGate";
+import { InstallationGroups } from "./InstallationGroups";
 
 const emptyMetadata: Metadata = {
   title: "",
@@ -34,6 +35,7 @@ export function ManualEditor({
   changed: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const pending = useRef<AbortController | null>(null);
   const [details, setDetails] = useState<Details | null>(null);
   const [metadata, setMetadata] = useState<Metadata>(emptyMetadata);
   const [source, setSource] = useState("Manual");
@@ -55,6 +57,7 @@ export function ManualEditor({
     const previous = document.activeElement as HTMLElement | null;
     element?.showModal();
     return () => {
+      pending.current?.abort();
       element?.close();
       if (previous?.isConnected && !previous.matches(":disabled"))
         previous.focus();
@@ -84,34 +87,50 @@ export function ManualEditor({
       });
     return () => controller.abort();
   }, [gameId]);
+  useEffect(() => {
+    if (!confirmation) return;
+    const previous = document.activeElement as HTMLElement | null;
+    dialog.current
+      ?.querySelector<HTMLElement>('[role="alertdialog"] button:last-child')
+      ?.focus();
+    return () => {
+      if (previous?.isConnected && !previous.matches(":disabled"))
+        previous.focus();
+    };
+  }, [confirmation]);
   async function run(action?: Action) {
-    if (busy) return;
+    if (busy || pending.current) return false;
+    const controller = new AbortController();
+    pending.current = controller;
     setBusy(true);
     setError("");
     try {
       if (!gameId) {
-        await pageGate.run(new AbortController().signal, () =>
+        await pageGate.run(controller.signal, () =>
           createManual(
             metadata,
             source,
             withInstallation ? installation : null,
           ),
         );
+        if (controller.signal.aborted) return false;
         changed();
         close();
       } else if (details && action) {
-        await pageGate.run(new AbortController().signal, () =>
+        await pageGate.run(controller.signal, () =>
           mutateManual(details, action),
         );
+        if (controller.signal.aborted) return false;
         changed();
         if (action.kind === "removeGame") {
           close();
-          return;
+          return true;
         }
         // Refresh only this bounded editor, preserving drafts on other forms.
-        const next = await pageGate.run(new AbortController().signal, () =>
+        const next = await pageGate.run(controller.signal, () =>
           getManual(gameId),
         );
+        if (controller.signal.aborted) return false;
         setDetails(next);
         if (!next.entries.some((e) => e.id === entryId))
           setEntryId(
@@ -126,10 +145,13 @@ export function ManualEditor({
         }
         setConfirmation(null);
       }
+      return true;
     } catch (e) {
-      setError((e as Error).message);
+      if (!controller.signal.aborted) setError((e as Error).message);
+      return false;
     } finally {
-      setBusy(false);
+      if (pending.current === controller) pending.current = null;
+      if (!controller.signal.aborted) setBusy(false);
     }
   }
   const input = (
@@ -224,8 +246,11 @@ export function ManualEditor({
           return;
         // WebView's native dialog traversal can visit the host after the last
         // control. Keep the boundary explicit, including disabled fieldsets.
-        const controls = event.currentTarget.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled)',
+        const scope =
+          event.currentTarget.querySelector('[role="alertdialog"]') ??
+          event.currentTarget;
+        const controls = scope.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), summary',
         );
         const first = controls[0];
         const last = controls[controls.length - 1];
@@ -347,7 +372,7 @@ export function ManualEditor({
                         onClick={() =>
                           setConfirmation({
                             action: { kind: "removeEntry", entryId: e.id },
-                            message: `Remove membership ${e.sourceName} and its ${details.installations.filter((i) => i.entryId === e.id).length} installation metadata records? The canonical game and other memberships stay.`,
+                            message: `Remove membership ${e.sourceName} and its ${details.installations.filter((i) => i.entryId === e.id).length} installation metadata records? The canonical game, other memberships and groups stay. Assignments for removed records are removed.`,
                           })
                         }
                       >
@@ -382,10 +407,24 @@ export function ManualEditor({
               <button>Add membership</button>
             </form>
             <h3>Installation metadata</h3>
+            <InstallationGroups
+              details={details}
+              save={run}
+              confirm={(action, message) =>
+                setConfirmation({ action, message })
+              }
+            />
             <ul>
               {details.installations.map((i) => (
                 <li key={i.id}>
                   {i.rootPathRef} · {i.detectionState} · {i.stateOrigin}
+                  <span>
+                    {" "}
+                    ·{" "}
+                    {i.groupId
+                      ? `${details.groups.find((g) => g.id === i.groupId)?.displayName} · ${i.groupId.slice(0, 8)}`
+                      : "Ungrouped"}
+                  </span>
                   {details.entries.find((e) => e.id === i.entryId)
                     ?.sourceType === "manual" && (
                     <>
@@ -478,7 +517,7 @@ export function ManualEditor({
                   onClick={() =>
                     setConfirmation({
                       action: { kind: "removeGame" },
-                      message: `Remove this canonical game, all ${details.entries.length} manual memberships, all ${details.installations.length} installation metadata records and its user overrides? Game files remain untouched.`,
+                      message: `Remove this canonical game, all ${details.entries.length} manual memberships, all ${details.installations.length} installation metadata records, all ${details.groups.length} installation groups and its user overrides? Game files remain untouched.`,
                     })
                   }
                 >
