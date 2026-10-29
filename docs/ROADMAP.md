@@ -227,7 +227,18 @@ M1.5 merged through PR #20 with passing GitHub CI; its original report retains t
 - [x] Forward schema v4, exact v2/v3/v4 snapshot validation, active-copy-only migration/recovery and preserved selected/original bytes.
 - [x] Bounded 100-profile editor, native keyboard/restart/restore/isolation checks, 60 frontend/84 default/107 feature Rust tests, both Clippy configurations/builds and 15k/25k regressions; six frozen fixture hashes unchanged.
 
-Mixed latency and worsened 25k deep-page tails remain documented under unchanged ADR-007; no query optimization is adopted. Launching, process execution, discovery/storefront integration and mod deployment remain outside this slice. M1.6 remains uncommitted with no new remote CI claim. Stop for review; no commit, push, merge or subsequent milestone automatically.
+Mixed latency and worsened 25k deep-page tails remain documented under unchanged ADR-007; no query optimization is adopted. Launching, process execution, discovery/storefront integration and mod deployment remain outside this slice. M1.6 subsequently merged through PR #21 at `e69f781`, confirmed by the user and Git baseline before separately authorized M1.7. The historical report remains unchanged. No new remote CI claim is made.
+
+### M1.7 - Standalone launch safety contract and native feasibility
+
+**Locally complete within the isolated synthetic scope, 2026-10-29**, separately authorized from clean merged M1.6 `e69f781`. See [verification](development/M1.7_STANDALONE_LAUNCH_FEASIBILITY.md) and **proposed** [ADR-011](decisions/ADR-011-standalone-launch-execution-contract.md).
+
+- [x] Execution-specific threat model and narrow future ID/revision/authorization contract, preserving ADR-010 and schema v4.
+- [x] Test-only persisted preparation/revalidation and deterministic reference/working-directory policy; direct unelevated Win32 candidate with literal arguments and a NUL-only handle allowlist.
+- [x] Harmless native fixtures verify argument vectors, stale context, native failures, privilege/handle boundaries, repeat/concurrent children and parent-exit behavior.
+- [x] 12 native/96 default/119 feature Rust/60 frontend tests, both Clippy configurations and optimized Windows builds; production isolation and six frozen hashes unchanged.
+
+Recommendation A: proceed to M1.8 production standalone launch **only with separate authorization**, real UI/IPC and maintenance admission, creation-only semantics and production-specific tests. No production launch command/action, schema or backup change is included here. ADR-011 is not automatically accepted. No commit, push, merge or later milestone automatically; Steam remains deferred and M0 E1–E5 remain unchanged.
 
 ### Broader remaining M1 scope
 
