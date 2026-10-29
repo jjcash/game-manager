@@ -42,6 +42,8 @@ const details: Details = {
     },
   ],
   installations: [],
+  profiles: [],
+  defaultProfileId: null,
   groups: [],
 };
 beforeEach(() => {

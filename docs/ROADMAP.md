@@ -215,11 +215,23 @@ No cloud, schedules, provider discovery/importing, launching or mod management. 
 - [x] Separate installation-bound LaunchProfile identity/lifecycle/default/revision contract with deterministic test-only associations; no production launch schema or engine.
 - [x] 56 frontend/79 default/102 feature Rust tests, both warnings-denied Clippy configurations, both optimized Windows builds, native restart/backup/isolation and 15k/25k query/browsing regressions; six frozen fixture hashes unchanged.
 
-M1.5 remains uncommitted with no new GitHub CI claim. M1.3 remains incomplete and Steam discovery deferred; M0 exceptions remain accepted. No commit, push, merge or subsequent milestone automatically.
+M1.5 merged through PR #20 with passing GitHub CI; its original report retains task-time local status. M1.3 remains incomplete and Steam discovery deferred; M0 exceptions remain accepted. No commit, push, merge or subsequent milestone automatically.
+
+### M1.6 - Manual LaunchProfile persistence and configuration
+
+**Locally complete and verified 2026-10-29**, separately authorized from clean merged M1.5 `e50af1b` after PR #20 CI passed. See [verification](development/M1.6_LAUNCH_PROFILE_VERIFICATION.md).
+
+- [x] User-owned standalone profiles with independent IDs/revisions and immutable installation bindings; explicit create/edit/duplicate/confirmed removal.
+- [x] Tagged Windows lexical references, literal ordered argument arrays and optional working-directory references; no filesystem access or game execution.
+- [x] Explicit revision-checked per-game defaults and restrictive installation/membership/manual-game deletion; group independence retained.
+- [x] Forward schema v4, exact v2/v3/v4 snapshot validation, active-copy-only migration/recovery and preserved selected/original bytes.
+- [x] Bounded 100-profile editor, native keyboard/restart/restore/isolation checks, 60 frontend/84 default/107 feature Rust tests, both Clippy configurations/builds and 15k/25k regressions; six frozen fixture hashes unchanged.
+
+Mixed latency and worsened 25k deep-page tails remain documented under unchanged ADR-007; no query optimization is adopted. Launching, process execution, discovery/storefront integration and mod deployment remain outside this slice. M1.6 remains uncommitted with no new remote CI claim. Stop for review; no commit, push, merge or subsequent milestone automatically.
 
 ### Broader remaining M1 scope
 
-Extend the verified Game, LibraryEntry, Installation and grouping foundation with separately authorized LaunchProfile persistence/configuration under ADR-010, basic settings and artwork storage. Initial Steam import still depends on separately resolving the deferred reader gate. Preserve explicit user overrides, canonical identity and bounded queries; make future imports idempotent.
+Extend the verified Game, LibraryEntry, Installation, grouping and LaunchProfile configuration foundation with separately authorized basic settings and artwork storage. Initial Steam import still depends on separately resolving the deferred reader gate. Preserve explicit user overrides, canonical identity and bounded queries; make future imports idempotent.
 
 Exit: records persist through restart; repeated imports do not duplicate entries or erase local edits; browsing remains responsive. The proposed detailed DSS must become tested migrations rather than being assumed production SQL.
 

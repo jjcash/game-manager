@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { invoke } from "@tauri-apps/api/core";
+import {
+  type Profile,
+  type ProfileAction,
+  validProfile,
+  validateConfiguration,
+} from "./launchProfiles";
 import { LibraryError } from "./library";
 
 export interface Metadata {
@@ -41,6 +47,8 @@ export interface Details {
   entries: Entry[];
   installations: Installation[];
   groups: InstallationGroup[];
+  profiles: Profile[];
+  defaultProfileId: string | null;
 }
 export type Action =
   | { kind: "metadata"; metadata: Metadata }
@@ -57,6 +65,7 @@ export type Action =
   | { kind: "saveGroup"; groupId: string | null; displayName: string }
   | { kind: "assignGroup"; installationId: string; groupId: string | null }
   | { kind: "removeGroup"; groupId: string }
+  | { kind: "launchProfile"; action: ProfileAction }
   | { kind: "removeGame" };
 
 export function validateMetadata(v: Metadata) {
@@ -159,6 +168,19 @@ export async function getManual(gameId: string) {
         /\p{Cc}/u.test(g.displayName),
     ) ||
     new Set(value.groups.map((g) => g.id)).size !== value.groups.length ||
+    !Array.isArray(value.profiles) ||
+    value.profiles.length > 100 ||
+    value.profiles.some(
+      (p) =>
+        !validProfile(
+          p,
+          gameId,
+          value.installations.map((i) => i.id),
+        ),
+    ) ||
+    new Set(value.profiles.map((p) => p.id)).size !== value.profiles.length ||
+    (value.defaultProfileId !== null &&
+      !value.profiles.some((p) => p.id === value.defaultProfileId)) ||
     !Array.isArray(value.overriddenFields) ||
     value.overriddenFields.length > 5 ||
     value.overriddenFields.some(
@@ -210,6 +232,11 @@ export function createManual(
   });
 }
 export function mutateManual(details: Details, action: Action) {
+  if (
+    action.kind === "launchProfile" &&
+    (action.action.operation === "create" || action.action.operation === "save")
+  )
+    validateConfiguration(action.action.configuration);
   if (action.kind === "saveGroup") validateGroupName(action.displayName);
   if (action.kind === "addEntry") validateSource(action.sourceName);
   if (action.kind === "metadata") validateMetadata(action.metadata);

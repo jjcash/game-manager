@@ -288,11 +288,13 @@ export function BackupPanel() {
               {(candidate.snapshot.bytes / 1024 / 1024).toFixed(2)} MiB.
               Restoring replaces your entire current library after restart.
             </p>
-            {candidate.snapshot.schemaVersion === 2 && (
+            {candidate.snapshot.schemaVersion < 4 && (
               <p>
-                This older backup has no installation groups. Its restored
-                library upgrades automatically; the selected backup stays
-                unchanged.
+                {candidate.snapshot.schemaVersion === 2
+                  ? "This older backup has no installation groups or LaunchProfiles. "
+                  : "This older backup has no LaunchProfiles. "}
+                Its restored library upgrades automatically; the selected backup
+                stays unchanged.
               </p>
             )}
             <button

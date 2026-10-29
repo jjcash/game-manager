@@ -125,6 +125,49 @@ try {
         },
       },
     });
+    // V4 configuration/defaults must restore byte-for-byte logical values too.
+    d = await invoke("manual_get", { gameId: ids[0] });
+    await invoke("manual_mutate", {
+      request: {
+        gameId: d.id,
+        expectedRevision: d.revision,
+        action: {
+          kind: "launchProfile",
+          action: {
+            operation: "create",
+            installationId: d.installations[0].id,
+            configuration: {
+              displayName: "Backup profile",
+              launcherKind: "standalone",
+              executableRef: {
+                kind: "installationRelative",
+                value: "bin\\synthetic.exe",
+              },
+              arguments: ["two words", "", '"quoted"'],
+              workingDirectoryRef: {
+                kind: "absolutePath",
+                value: "Z:\\synthetic-unopened",
+              },
+            },
+          },
+        },
+      },
+    });
+    d = await invoke("manual_get", { gameId: ids[0] });
+    await invoke("manual_mutate", {
+      request: {
+        gameId: d.id,
+        expectedRevision: d.revision,
+        action: {
+          kind: "launchProfile",
+          action: {
+            operation: "setDefault",
+            profileId: d.profiles[0].id,
+            expectedProfileRevision: d.profiles[0].revision,
+          },
+        },
+      },
+    });
     const expected = { ids, details: await details(ids) };
     await writeFile(manifest, JSON.stringify(expected, null, 2), {
       flag: "wx",
@@ -194,6 +237,26 @@ try {
           kind: "assignGroup",
           installationId: d.installations[0].id,
           groupId: null,
+        },
+      },
+    });
+    d = await invoke("manual_get", { gameId: ids[0] });
+    await invoke("manual_mutate", {
+      request: {
+        gameId: d.id,
+        expectedRevision: d.revision,
+        action: {
+          kind: "launchProfile",
+          action: {
+            operation: "save",
+            profileId: d.profiles[0].id,
+            expectedProfileRevision: d.profiles[0].revision,
+            configuration: {
+              ...d.profiles[0].configuration,
+              arguments: ["changed after backup"],
+              displayName: "Changed profile",
+            },
+          },
         },
       },
     });

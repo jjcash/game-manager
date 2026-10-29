@@ -10,6 +10,7 @@ import {
   type Metadata,
 } from "../../ipc/manual";
 import { pageGate } from "./requestGate";
+import { LaunchProfiles } from "./LaunchProfiles";
 import { InstallationGroups } from "./InstallationGroups";
 
 const emptyMetadata: Metadata = {
@@ -250,7 +251,7 @@ export function ManualEditor({
           event.currentTarget.querySelector('[role="alertdialog"]') ??
           event.currentTarget;
         const controls = scope.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), summary',
+          'button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), summary',
         );
         const first = controls[0];
         const last = controls[controls.length - 1];
@@ -406,6 +407,13 @@ export function ManualEditor({
               </label>
               <button>Add membership</button>
             </form>
+            <LaunchProfiles
+              details={details}
+              save={run}
+              confirm={(action, message) =>
+                setConfirmation({ action, message })
+              }
+            />
             <h3>Installation metadata</h3>
             <InstallationGroups
               details={details}

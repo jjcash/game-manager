@@ -27,6 +27,7 @@ async fn populate_v2(c: &mut SqliteConnection) {
 }
 async fn populate(db: &Database) {
     populate_v2(&mut db.pool.acquire().await.unwrap()).await;
+    sqlx::raw_sql("INSERT INTO launch_profiles(id,installation_id,provenance,display_name,launcher_kind,executable_kind,executable_value,arguments_json,revision,created_at_ms,updated_at_ms) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','i1','user','Café','standalone','installationRelative','game.exe','[\"two words\",\"\",\"日本語\"]',7,123,456); INSERT INTO game_launch_defaults VALUES ('g1','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');").execute(&db.pool).await.unwrap();
     sqlx::raw_sql("INSERT INTO installation_groups VALUES ('group-a','g1','日本語 copies'),('group-b','g1','日本語 copies'); INSERT INTO installation_group_members VALUES ('i1','group-a'),('i3','group-a');").execute(&db.pool).await.unwrap();
 }
 async fn dump(db: &Database) -> Vec<String> {
@@ -41,6 +42,8 @@ async fn dump(db: &Database) -> Vec<String> {
         "SELECT json_group_array(json_array(game_id,field,value)) FROM (SELECT * FROM game_field_overrides ORDER BY game_id,field)",
         "SELECT json_group_array(json_array(id,game_id,display_name)) FROM (SELECT * FROM installation_groups ORDER BY id)",
         "SELECT json_group_array(json_array(installation_id,group_id)) FROM (SELECT * FROM installation_group_members ORDER BY installation_id)",
+        "SELECT json_group_array(json_array(id,installation_id,provenance,display_name,launcher_kind,executable_kind,executable_value,arguments_json,working_directory_kind,working_directory_value,revision,created_at_ms,updated_at_ms)) FROM (SELECT * FROM launch_profiles ORDER BY id)",
+        "SELECT json_group_array(json_array(game_id,profile_id)) FROM (SELECT * FROM game_launch_defaults ORDER BY game_id)",
     ] {
         result.push(sqlx::query_scalar(sql).fetch_one(&db.pool).await.unwrap());
     }
@@ -254,16 +257,36 @@ async fn invalid_backups_never_touch_active_or_selected_files() {
         ("missing", "DROP TABLE game_field_overrides"),
         (
             "cross-game-group",
-            "UPDATE library_entries SET game_id='g2' WHERE id='e1'",
+            "UPDATE library_entries SET game_id='g2' WHERE id='e2'",
         ),
         ("extra", "CREATE TABLE unrelated(secret TEXT)"),
+        (
+            "profile-traversal",
+            "UPDATE launch_profiles SET executable_value='..\\escape.exe'",
+        ),
+        (
+            "profile-arguments",
+            "UPDATE launch_profiles SET arguments_json='[1]'",
+        ),
+        (
+            "profile-working-directory",
+            "UPDATE launch_profiles SET working_directory_kind='absolutePath',working_directory_value='C:relative'",
+        ),
+        (
+            "profile-unsupported",
+            "PRAGMA ignore_check_constraints=ON; UPDATE launch_profiles SET launcher_kind='shell'",
+        ),
+        (
+            "profile-revision",
+            "PRAGMA ignore_check_constraints=ON; UPDATE launch_profiles SET revision=-1",
+        ),
         (
             "override",
             "UPDATE game_field_overrides SET value='1' WHERE field='favorite'",
         ),
         (
             "foreign-key",
-            "PRAGMA foreign_keys=OFF; UPDATE library_entries SET game_id='absent'",
+            "PRAGMA foreign_keys=OFF; UPDATE library_entries SET game_id='absent' WHERE id='e4'",
         ),
         (
             "metadata",
@@ -279,6 +302,27 @@ async fn invalid_backups_never_touch_active_or_selected_files() {
         assert!(stage_restore(&db, &file).await.is_err(), "accepted {name}");
         assert_eq!(std::fs::read(&file).unwrap(), before);
     }
+    // Corrupt the data while restoring the exact trigger SQL: this exercises
+    // relationship validation rather than merely the schema-mismatch gate.
+    let file = root.path().join("cross-game-default");
+    std::fs::copy(&valid, &file).unwrap();
+    let mut c = connection(&file).await;
+    let trigger: String = sqlx::query_scalar(
+        "SELECT sql FROM sqlite_schema WHERE name='launch_default_same_game_update'",
+    )
+    .fetch_one(&mut c)
+    .await
+    .unwrap();
+    sqlx::raw_sql("DROP TRIGGER launch_default_same_game_update; UPDATE game_launch_defaults SET game_id='g2';")
+        .execute(&mut c).await.unwrap();
+    sqlx::raw_sql(sqlx::AssertSqlSafe(trigger.as_str()))
+        .execute(&mut c)
+        .await
+        .unwrap();
+    c.close().await.unwrap();
+    let before = std::fs::read(&file).unwrap();
+    assert!(stage_restore(&db, &file).await.is_err());
+    assert_eq!(std::fs::read(&file).unwrap(), before);
     for (name, data) in [
         ("unrecognized", b"not SQLite".as_slice()),
         ("truncated", &std::fs::read(&valid).unwrap()[..1024]),
@@ -865,113 +909,128 @@ async fn release_and_stress_scale_maintenance_probe() {
 }
 
 #[tokio::test]
-async fn exact_v2_backups_upgrade_only_active_copies_and_recovery_is_repeatable() {
-    let root = tempdir().unwrap();
-    let backup = root.path().join("v2.sqlite3");
-    let mut c = SqliteConnection::connect_with(
-        &SqliteConnectOptions::new()
-            .filename(&backup)
-            .create_if_missing(true)
-            .foreign_keys(true),
-    )
-    .await
-    .unwrap();
-    let old = sqlx::migrate::Migrator {
-        migrations: std::borrow::Cow::Borrowed(&MIGRATOR.migrations[..2]),
-        ..sqlx::migrate::Migrator::DEFAULT
-    };
-    old.run_direct(None, &mut c, false).await.unwrap();
-    populate_v2(&mut c).await;
-    c.close().await.unwrap();
-    let bytes = std::fs::read(&backup).unwrap();
-    assert_eq!(validate_snapshot(&backup).await.unwrap().schema_version, 2);
-    let path = root.path().join("library.sqlite3");
-    let db = Database::initialize(&path).await.unwrap();
-    populate(&db).await;
-    let original = dump(&db).await;
-    let staged = stage_restore(&db, &backup).await.unwrap();
-    assert_eq!(staged.snapshot.schema_version, 2);
-    staged.confirm(&db).await.unwrap();
-    drop(db);
-    let db = Database::initialize(&path).await.unwrap();
-    assert_eq!(db.status().await.unwrap().schema_version, 3);
-    let d = db.manual_details("g1").await.unwrap();
-    assert_eq!(d.revision, 17);
-    assert_eq!(d.entries.len(), 2);
-    assert_eq!(d.installations.len(), 3);
-    assert!(d.groups.is_empty());
-    assert!(d.installations.iter().all(|i| i.group_id.is_none()));
-    assert_eq!(d.overridden_fields.len(), 5);
-    assert!(d.metadata.genre.is_none());
-    let directory = journal(&path).unwrap().unwrap();
-    assert_eq!(
-        std::fs::read(directory.join("candidate.sqlite3")).unwrap(),
-        bytes
-    );
-    assert_eq!(std::fs::read(&backup).unwrap(), bytes);
-    let expected = dump(&db).await;
-    // V3 backup after a v2 restore is itself restorable with exact migration data.
-    let v3 = root.path().join("upgraded.sqlite3");
-    assert_eq!(
-        create_backup(&db, &v3, &cancel())
-            .await
-            .unwrap()
-            .schema_version,
-        3
-    );
-    let staged = stage_restore(&db, &v3).await.unwrap();
-    staged.confirm(&db).await.unwrap();
-    drop(db);
-    let db = Database::initialize(&path).await.unwrap();
-    assert_eq!(dump(&db).await, expected);
-    db.close().await;
-    let db = Database::initialize(&path).await.unwrap();
-    assert_eq!(dump(&db).await, expected);
-    db.close().await;
-    // A v2 candidate that fails after active-copy migration recovers a grouped v3 original.
-    let other = root.path().join("recovery/library.sqlite3");
-    let db = Database::initialize(&other).await.unwrap();
-    populate(&db).await;
-    let prior = dump(&db).await;
-    assert_eq!(&prior[2..], &original[2..]);
-    let staged = stage_restore(&db, &backup).await.unwrap();
-    staged.confirm(&db).await.unwrap();
-    drop(db);
-    let db = resume_with(
-        &other,
-        Faults {
-            fail: Some("reopened"),
-            ..Default::default()
-        },
-    )
-    .await
-    .unwrap();
-    assert_eq!(dump(&db).await, prior);
-    assert_eq!(outcome(&other).unwrap(), Some("recovered"));
-    db.close().await;
-    assert_eq!(std::fs::read(&backup).unwrap(), bytes);
-    // Synthetic historical M1.4 journal: its original is still exact v2 and
-    // attempted intent must recover it by copying, never upgrading the preserved file.
-    let historical = root.path().join("historical/library.sqlite3");
-    let db = Database::initialize(&historical).await.unwrap();
-    populate(&db).await;
-    let staged = stage_restore(&db, &backup).await.unwrap();
-    staged.confirm(&db).await.unwrap();
-    let directory = pending_journal(&historical).unwrap().unwrap();
-    drop(db);
-    std::fs::copy(&backup, directory.join("previous.sqlite3")).unwrap();
-    mark(&directory, "attempted").unwrap();
-    let db = Database::initialize(&historical).await.unwrap();
-    assert_eq!(outcome(&historical).unwrap(), Some("recovered"));
-    assert_eq!(db.status().await.unwrap().schema_version, 3);
-    let d = db.manual_details("g1").await.unwrap();
-    assert_eq!(d.revision, 17);
-    assert_eq!(d.installations.len(), 3);
-    assert_eq!(d.overridden_fields.len(), 5);
-    assert!(d.groups.is_empty());
-    assert_eq!(
-        std::fs::read(directory.join("previous.sqlite3")).unwrap(),
-        bytes
-    );
-    db.close().await;
+async fn exact_v2_v3_backups_upgrade_only_active_copies_and_recovery_is_repeatable() {
+    for version in [2, 3] {
+        let root = tempdir().unwrap();
+        let backup = root.path().join(format!("v{version}.sqlite3"));
+        let mut c = SqliteConnection::connect_with(
+            &SqliteConnectOptions::new()
+                .filename(&backup)
+                .create_if_missing(true)
+                .foreign_keys(true),
+        )
+        .await
+        .unwrap();
+        let old = sqlx::migrate::Migrator {
+            migrations: std::borrow::Cow::Borrowed(&MIGRATOR.migrations[..version]),
+            ..sqlx::migrate::Migrator::DEFAULT
+        };
+        old.run_direct(None, &mut c, false).await.unwrap();
+        populate_v2(&mut c).await;
+        if version == 3 {
+            sqlx::query("INSERT INTO installation_groups VALUES ('old-group','g1','Preserved v3')")
+                .execute(&mut c)
+                .await
+                .unwrap();
+        }
+        c.close().await.unwrap();
+        let bytes = std::fs::read(&backup).unwrap();
+        assert_eq!(
+            validate_snapshot(&backup).await.unwrap().schema_version,
+            version as i64
+        );
+        let path = root.path().join("library.sqlite3");
+        let db = Database::initialize(&path).await.unwrap();
+        populate(&db).await;
+        let original = dump(&db).await;
+        let staged = stage_restore(&db, &backup).await.unwrap();
+        assert_eq!(staged.snapshot.schema_version, version as i64);
+        staged.confirm(&db).await.unwrap();
+        drop(db);
+        let db = Database::initialize(&path).await.unwrap();
+        assert_eq!(db.status().await.unwrap().schema_version, 4);
+        let d = db.manual_details("g1").await.unwrap();
+        assert_eq!(d.revision, 17);
+        assert_eq!(d.entries.len(), 2);
+        assert_eq!(d.installations.len(), 3);
+        assert_eq!(d.groups.len(), if version == 3 { 1 } else { 0 });
+        assert!(d.profiles.is_empty());
+        assert!(d.default_profile_id.is_none());
+        assert!(d.installations.iter().all(|i| i.group_id.is_none()));
+        assert_eq!(d.overridden_fields.len(), 5);
+        assert!(d.metadata.genre.is_none());
+        let directory = journal(&path).unwrap().unwrap();
+        assert_eq!(
+            std::fs::read(directory.join("candidate.sqlite3")).unwrap(),
+            bytes
+        );
+        assert_eq!(std::fs::read(&backup).unwrap(), bytes);
+        let expected = dump(&db).await;
+        // V3 backup after a v2 restore is itself restorable with exact migration data.
+        let v3 = root.path().join("upgraded.sqlite3");
+        assert_eq!(
+            create_backup(&db, &v3, &cancel())
+                .await
+                .unwrap()
+                .schema_version,
+            4
+        );
+        let staged = stage_restore(&db, &v3).await.unwrap();
+        staged.confirm(&db).await.unwrap();
+        drop(db);
+        let db = Database::initialize(&path).await.unwrap();
+        assert_eq!(dump(&db).await, expected);
+        db.close().await;
+        let db = Database::initialize(&path).await.unwrap();
+        assert_eq!(dump(&db).await, expected);
+        db.close().await;
+        // A v2 candidate that fails after active-copy migration recovers a grouped v3 original.
+        let other = root.path().join("recovery/library.sqlite3");
+        let db = Database::initialize(&other).await.unwrap();
+        populate(&db).await;
+        let prior = dump(&db).await;
+        assert_eq!(&prior[2..], &original[2..]);
+        let staged = stage_restore(&db, &backup).await.unwrap();
+        staged.confirm(&db).await.unwrap();
+        drop(db);
+        let db = resume_with(
+            &other,
+            Faults {
+                fail: Some("reopened"),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(dump(&db).await, prior);
+        assert_eq!(outcome(&other).unwrap(), Some("recovered"));
+        db.close().await;
+        assert_eq!(std::fs::read(&backup).unwrap(), bytes);
+        // Synthetic historical M1.4 journal: its original is still exact v2 and
+        // attempted intent must recover it by copying, never upgrading the preserved file.
+        let historical = root.path().join("historical/library.sqlite3");
+        let db = Database::initialize(&historical).await.unwrap();
+        populate(&db).await;
+        let staged = stage_restore(&db, &backup).await.unwrap();
+        staged.confirm(&db).await.unwrap();
+        let directory = pending_journal(&historical).unwrap().unwrap();
+        drop(db);
+        std::fs::copy(&backup, directory.join("previous.sqlite3")).unwrap();
+        mark(&directory, "attempted").unwrap();
+        let db = Database::initialize(&historical).await.unwrap();
+        assert_eq!(outcome(&historical).unwrap(), Some("recovered"));
+        assert_eq!(db.status().await.unwrap().schema_version, 4);
+        let d = db.manual_details("g1").await.unwrap();
+        assert_eq!(d.revision, 17);
+        assert_eq!(d.installations.len(), 3);
+        assert_eq!(d.overridden_fields.len(), 5);
+        assert_eq!(d.groups.len(), if version == 3 { 1 } else { 0 });
+        assert!(d.profiles.is_empty());
+        assert!(d.default_profile_id.is_none());
+        assert_eq!(
+            std::fs::read(directory.join("previous.sqlite3")).unwrap(),
+            bytes
+        );
+        db.close().await;
+    }
 }
