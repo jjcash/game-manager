@@ -4,6 +4,7 @@ pub mod artwork;
 mod commands;
 #[cfg(feature = "benchmarks")]
 pub mod jobs;
+mod maintenance_commands;
 pub mod scheduling;
 pub mod storage;
 
@@ -107,7 +108,8 @@ pub struct DatabaseState {
 
 impl DatabaseState {
     fn ready(&self) -> storage::Result<&storage::Database> {
-        self.database
+        let db = self
+            .database
             .get()
             .ok_or_else(|| {
                 storage::StorageError::new(
@@ -117,7 +119,15 @@ impl DatabaseState {
                 )
             })?
             .as_ref()
-            .map_err(Clone::clone)
+            .map_err(Clone::clone)?;
+        if db.is_stopping() {
+            return Err(storage::StorageError::new(
+                storage::ErrorCode::NotReady,
+                "restore",
+                "Library is closed for restore. Restart Game Manager to continue.",
+            ));
+        }
+        Ok(db)
     }
 }
 
@@ -125,6 +135,7 @@ pub fn run() {
     #[cfg(feature = "benchmarks")]
     startup_mark("run-entry");
     let builder = tauri::Builder::default().setup(|app| {
+        app.manage(maintenance_commands::MaintenanceState::default());
         #[cfg(feature = "benchmarks")]
         startup_mark("setup-entry");
         // A separate profiling mode brackets the otherwise Tauri-owned window
@@ -298,6 +309,13 @@ pub fn run() {
         commands::manual_get,
         commands::manual_create,
         commands::manual_mutate,
+        maintenance_commands::backup_get_status,
+        maintenance_commands::backup_create,
+        maintenance_commands::backup_cancel,
+        maintenance_commands::backup_select_restore,
+        maintenance_commands::backup_cancel_restore,
+        maintenance_commands::backup_confirm_restore,
+        maintenance_commands::backup_restart,
         commands::artwork_get_thumbnail,
         commands::artwork_get_stats
     ]);
@@ -312,6 +330,13 @@ pub fn run() {
         commands::manual_get,
         commands::manual_create,
         commands::manual_mutate,
+        maintenance_commands::backup_get_status,
+        maintenance_commands::backup_create,
+        maintenance_commands::backup_cancel,
+        maintenance_commands::backup_select_restore,
+        maintenance_commands::backup_cancel_restore,
+        maintenance_commands::backup_confirm_restore,
+        maintenance_commands::backup_restart,
         commands::artwork_get_thumbnail,
         commands::artwork_get_stats,
         commands::synthetic_start,

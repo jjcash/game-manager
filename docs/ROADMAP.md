@@ -193,6 +193,18 @@ The [M1.3 stop](development/M1.3_STEAM_PREVIEW_VERIFICATION.md), [M1.3A investig
 
 No production UI/IPC, persistent grants, real Steam scanning, authentication/account access, game-directory traversal, migrations, importing/catalog writes or other storefront integrations. Manual-library architecture and M0 policy stay unchanged. No model A claim, automatic M1.3 resumption, later milestone, commit or push. M1.3 remains incomplete even if M1.3C succeeds; inconclusive evidence is not a successful reader.
 
+### M1.4 — Offline library backup and restore
+
+Explicitly authorized after deferring Steam discovery, from merged M1.3C closeout `7566c65`. Complete within the current-schema, local-storage scope in [M1.4 verification](development/M1.4_BACKUP_RESTORE_VERIFICATION.md) and [ADR-009](decisions/ADR-009-offline-library-restore-lifecycle.md). This brings database-only backup/restore forward from broader M5 reliability acceptance; it does not close M5 or certify arbitrary power loss. M1.3 remains incomplete and Steam discovery deferred.
+
+- [x] Consistent committed SQLite snapshot, validation, disposable output and publication without overwriting.
+- [x] Application-purpose/current-schema compatibility, integrity, relationships and overrides; no migration of selected backups.
+- [x] Confirmed staging, process lock, closed-pool restart boundary, original preservation, startup replacement/verification and repeatable recovery tests.
+- [x] Compact typed Settings workflow with native file pickers and explicit replacement confirmation.
+- [x] Final optimized native workflow/restart and second launch, manual-library/isolation/startup-error and 15k/25k regressions; scoped verification report and screenshots.
+
+No cloud, schedules, provider discovery/importing, launching or mod management. Retain M0 E1–E5 and all historical Steam research. No commit, push, merge or later milestone is authorized.
+
 ### Broader remaining M1 scope
 
 Extend the verified Game, LibraryEntry and Installation foundation with separately authorized LaunchProfile identity, configurable grouping, initial Steam import, basic settings and artwork storage. Preserve explicit user overrides, canonical identity and bounded queries; make future imports idempotent.

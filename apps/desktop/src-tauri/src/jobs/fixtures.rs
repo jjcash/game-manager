@@ -139,7 +139,10 @@ pub async fn open(root: &Path) -> storage::Result<(Database, Marker, PathBuf)> {
                 .statement_cache_capacity(64),
         )
         .await?;
-    let db = Database { pool };
+    let db = Database {
+        pool,
+        lifecycle: None,
+    };
     let _: i64 = sqlx::query_scalar("SELECT count(*) FROM simulation_runs")
         .fetch_one(&db.pool)
         .await?;

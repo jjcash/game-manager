@@ -14,6 +14,18 @@ Use an ordinary optimized executable for the production manual workflow. The run
 
 The query runner uses SQLite backup to create exclusively new application-purpose copies of the 15k/25k synthetic fixtures, runs schema-v1 baseline and schema-v2 ordinary builds in reversed order over two passes, and retains 20 warm full-summary/query/invoke samples per first/deep case after one warm-up. Exact repeated rows and page lengths are asserted. Original fixture hashes must match afterward. OS caches are retained, fresh WebView profiles are used per launch, and timings are finite service measurements without displayed-frame claims. Build/test work must finish before measuring. M0 reference databases, generator and historical migration remain v1; the application migrator adds v2 only to application databases. See [M1.1 verification](../docs/development/M1.1_VERIFICATION.md).
 
+## M1.4 offline backup and restore verification
+
+Build an ordinary optimized executable and close existing Game Manager windows. This interactive smoke reserves a new disposable application root and profile, exercises native save/open dialogs, purpose/collision/cancellation gates, confirmation, actual Tauri restart and a subsequent process launch. Follow the six file-picker instructions printed by the driver; use only files inside the new smoke root. The runner creates its standalone benchmark-purpose rejection fixture with SQLite online backup from the frozen 500-entry reference; do not select a live reference database with sidecars. The completed phases require pending restore authority retired and historical status preserved. It never introduces path-taking production IPC or accesses a game installation.
+
+```powershell
+./benchmarks/backup.ps1 -ResultsDirectory E:/dev/game-manager/benchmarks/results/backup-new
+cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --locked --lib storage::maintenance
+cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --release --locked --lib storage::maintenance::tests::release_and_stress_scale_maintenance_probe -- --exact --nocapture
+```
+
+The real SQLite tests use disposable roots, including native sharing/ACL denial and child-process exits that bypass Rust destructors. Physical power loss and a genuinely full volume are separate unverified conditions; injected partial-output StorageFull is labelled in the [report](../docs/development/M1.4_BACKUP_RESTORE_VERIFICATION.md). Run timing probes after builds/tests finish. Preserve all six frozen reference fixture hashes.
+
 ## M1.2 Steam contract fixtures
 
 Run from `apps/desktop`:

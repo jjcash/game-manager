@@ -589,3 +589,33 @@ h1 {
   border: 1px solid #ecb26b;
   padding: 10px;
 }
+.backup-content {
+  padding: 24px;
+  max-width: 850px;
+  line-height: 1.6;
+}
+.backup-panel button {
+  margin: 8px 12px 8px 0;
+  padding: 7px 12px;
+  border: 1px solid #59716c;
+  border-radius: 5px;
+  background: #202a2e;
+  color: #e8eef0;
+  cursor: pointer;
+}
+.backup-panel button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.backup-panel :focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+.backup-candidate {
+  border: 1px solid #59716c;
+  border-radius: 5px;
+  padding: 16px;
+}
+.backup-panel [role="alert"] {
+  color: #f4c28a;
+}

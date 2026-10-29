@@ -8,6 +8,7 @@ use std::{
     time::Duration,
 };
 
+pub mod maintenance;
 pub mod manual;
 pub mod query;
 #[cfg(feature = "benchmarks")]
@@ -110,9 +111,10 @@ pub fn validate_path(path: &Path) -> Result<()> {
 #[derive(Debug)]
 pub struct Database {
     pub(crate) pool: SqlitePool,
+    pub(crate) lifecycle: Option<maintenance::Lifecycle>,
 }
 
-#[derive(Debug, Serialize, FromRow, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, FromRow, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Counts {
     pub games: i64,
@@ -222,7 +224,10 @@ impl Database {
             .await?;
         #[cfg(feature = "benchmarks")]
         crate::startup_mark("readonly-pool-opened");
-        let db = Self { pool };
+        let db = Self {
+            pool,
+            lifecycle: None,
+        };
         let purpose: String =
             sqlx::query_scalar("SELECT purpose FROM database_metadata WHERE singleton = 1")
                 .fetch_one(&db.pool)
@@ -286,7 +291,10 @@ impl Database {
         })
     }
     pub async fn initialize(path: &Path) -> Result<Self> {
-        Self::open(path, "application", true).await
+        let lifecycle = maintenance::Lifecycle::acquire(path)?;
+        let mut db = maintenance::resume(path).await?;
+        db.lifecycle = Some(lifecycle);
+        Ok(db)
     }
 
     pub(crate) async fn open(path: &Path, purpose: &str, allow_empty: bool) -> Result<Self> {
@@ -384,11 +392,17 @@ impl Database {
             .await?;
         #[cfg(feature = "benchmarks")]
         crate::startup_mark("application-wal-pool-opened");
-        Ok(Self { pool })
+        Ok(Self {
+            pool,
+            lifecycle: None,
+        })
     }
 
     pub async fn close(&self) {
         self.pool.close().await;
+        if let Some(lifecycle) = &self.lifecycle {
+            lifecycle.release();
+        }
     }
 
     pub async fn counts(&self) -> Result<Counts> {
