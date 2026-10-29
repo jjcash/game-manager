@@ -21,6 +21,8 @@ Use new ADRs for future material architectural changes and link superseded recor
 
 ## Review and documentation alignment
 
+[ADR-009](ADR-009-offline-library-restore-lifecycle.md) records the M1.4 implementation decision for consistent snapshots and a process-exclusive, restart-bound restore/recovery lifecycle. Its verification report governs implementation claims; ADR-007 exceptions and accepted ADR-008 remain unchanged, and Steam discovery remains deferred.
+
 ADR-001 through ADR-005 were reviewed against the recovered conversation and reconciled specifications. That review corrected the existing records; it did not accept a new architecture, implement features, or validate performance. ADR-006 is a later explicit user decision to adopt GPL-3.0-or-later.
 
 The original chat used preliminary ADR numbers that differ from this package. Its stack/SQLite/local-first decisions are consolidated in current ADR-003; its performance decision is current ADR-004. Configurable installation grouping, integrated mods in the MVP, and built-in functionality before extensions are agreed product requirements. Current ADR-002 records the later removal of portable distribution, and current ADR-005 records external-first trainers. Historical ADR-006/007/008 labels do not designate the later repository records: current ADR-006 concerns the software license, ADR-007 conditional M0 closure and ADR-008 Steam discovery model B.

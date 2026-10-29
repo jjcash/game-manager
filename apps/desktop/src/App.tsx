@@ -5,6 +5,7 @@ import { BackendStatus } from "./components/BackendStatus";
 import { Icon } from "./components/Icon";
 import "./App.css";
 import { LibraryView } from "./features/library/LibraryView";
+import { BackupPanel } from "./features/backup/BackupPanel";
 
 const sections = {
   Library: {
@@ -82,6 +83,8 @@ export default function App() {
         </header>
         {activeSection === "Library" ? (
           <LibraryView />
+        ) : activeSection === "Settings" ? (
+          <BackupPanel />
         ) : (
           <section
             className="placeholder-panel"

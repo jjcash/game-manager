@@ -198,6 +198,7 @@ impl Scheduler {
         }
         let view = Database {
             pool: db.pool.clone(),
+            lifecycle: None,
         };
         Ok((
             Arc::new(Self {

@@ -13,6 +13,13 @@
     "allow-manual-get",
     "allow-manual-create",
     "allow-manual-mutate",
+    "allow-backup-get-status",
+    "allow-backup-create",
+    "allow-backup-cancel",
+    "allow-backup-select-restore",
+    "allow-backup-cancel-restore",
+    "allow-backup-confirm-restore",
+    "allow-backup-restart",
     "allow-artwork-get-thumbnail",
     "allow-artwork-get-stats"
   ]

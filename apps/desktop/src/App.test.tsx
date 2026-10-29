@@ -27,7 +27,13 @@ describe("desktop shell", () => {
       fireEvent.click(screen.getByRole("button", { name }));
       expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(name);
       expect(
-        screen.getByText(name === "Library" ? "Library details" : /Planned/),
+        screen.getByText(
+          name === "Library"
+            ? "Library details"
+            : name === "Settings"
+              ? "Offline library backup"
+              : /Planned/,
+        ),
       ).toBeTruthy();
     }
   });

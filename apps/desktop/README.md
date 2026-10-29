@@ -6,6 +6,8 @@ M1.1 adds **Add game** and **Manage selected game** to the existing Library. Sav
 
 Application schema v2 adds ownership, edit revision, installation-state provenance and field overrides without changing summary queries. Existing databases upgrade transactionally before library access. Benchmark-purpose generator-v1 databases intentionally retain schema v1 and reject manual commands. See [M1.1 verification](../../docs/development/M1.1_VERIFICATION.md) and the [native smoke runners](../../benchmarks/README.md#m11-manual-library-verification).
 
+M1.4 adds Settings backup/restore with native file selection, strict snapshot validation, explicit replacement confirmation and restart-bound recovery. The application database path/schema and foreground queries remain unchanged; a process ownership lock prevents concurrent application instances at the same root. See [M1.4 verification](../../docs/development/M1.4_BACKUP_RESTORE_VERIFICATION.md) for current checks and limits. Backups contain database metadata only; game/mod files and artwork are excluded.
+
 ## Recommended IDE Setup
 
 - [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)

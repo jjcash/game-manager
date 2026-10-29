@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-backup-restart"
+description = "Enables the backup_restart command without any pre-configured scope."
+commands.allow = ["backup_restart"]
+
+[[permission]]
+identifier = "deny-backup-restart"
+description = "Denies the backup_restart command without any pre-configured scope."
+commands.deny = ["backup_restart"]
