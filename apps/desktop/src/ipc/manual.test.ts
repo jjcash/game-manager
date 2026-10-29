@@ -96,6 +96,8 @@ it("validates bounded group associations and sends stable IDs with the game revi
         groupId: "g",
       },
     ],
+    profiles: [],
+    defaultProfileId: null,
     groups: [
       { id: "g", displayName: "Same" },
       { id: "other", displayName: "Same" },

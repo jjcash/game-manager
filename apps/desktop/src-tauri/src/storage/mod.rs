@@ -8,6 +8,7 @@ use std::{
     time::Duration,
 };
 
+pub mod launch_profiles;
 pub mod maintenance;
 pub mod manual;
 pub mod query;

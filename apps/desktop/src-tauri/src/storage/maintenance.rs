@@ -141,7 +141,7 @@ pub struct Snapshot {
 type Schema = Vec<(String, String, String, String)>;
 async fn schema(c: &mut SqliteConnection) -> Result<Schema> {
     Ok(sqlx::query_as(
-        "SELECT substr(type,1,32),substr(name,1,128),substr(tbl_name,1,128),substr(sql,1,16384) FROM sqlite_schema WHERE sql IS NOT NULL ORDER BY type,name LIMIT 32",
+        "SELECT substr(type,1,32),substr(name,1,128),substr(tbl_name,1,128),substr(sql,1,16384) FROM sqlite_schema WHERE sql IS NOT NULL ORDER BY type,name LIMIT 64",
     )
     .fetch_all(c)
     .await?)
@@ -153,7 +153,7 @@ async fn expected_schema(version: usize) -> Result<&'static Schema> {
     let schemas = SCHEMAS
         .get_or_try_init(|| async {
             let mut result = Vec::new();
-            for count in [2, 3] {
+            for count in [2, 3, 4] {
                 let mut c = SqliteConnection::connect("sqlite::memory:").await?;
                 let migrator = sqlx::migrate::Migrator {
                     migrations: std::borrow::Cow::Borrowed(&MIGRATOR.migrations[..count]),
@@ -176,7 +176,7 @@ async fn expected_schema(version: usize) -> Result<&'static Schema> {
         .await?;
     Ok(&schemas[version - 2])
 }
-/// Standalone exact application schemas v2 and v3 are supported. Validation is
+/// Standalone exact application schemas v2, v3 and v4 are supported. Validation is
 /// read-only; only an installed active copy is upgraded by ordinary initialization.
 pub async fn validate_snapshot(path: &Path) -> Result<Snapshot> {
     if tokio::fs::metadata(path).await.map_err(io)?.len() > MAX_SNAPSHOT_BYTES {
@@ -231,11 +231,11 @@ async fn validate_connection(c: &mut SqliteConnection, path: &Path) -> Result<Sn
         ));
     }
     let history: Vec<(i64, bool, Vec<u8>)> =
-        sqlx::query_as("SELECT version,success=1,substr(checksum,1,64) FROM _sqlx_migrations ORDER BY version LIMIT 4")
+        sqlx::query_as("SELECT version,success=1,substr(checksum,1,64) FROM _sqlx_migrations ORDER BY version LIMIT 5")
             .fetch_all(&mut *c)
             .await?;
     let version = history.len();
-    if !matches!(version, 2 | 3)
+    if !matches!(version, 2..=4)
         || history
             .iter()
             .zip(MIGRATOR.iter())
@@ -243,7 +243,7 @@ async fn validate_connection(c: &mut SqliteConnection, path: &Path) -> Result<Sn
     {
         return Err(error(
             ErrorCode::Migration,
-            "Backup schema or migration history is incompatible with this build. Supported application schemas are v2 and v3; keep the backup for a compatible version.",
+            "Backup schema or migration history is incompatible with this build. Supported application schemas are v2, v3 and v4; keep the backup for a compatible version.",
         ));
     }
     if schema(c).await? != *expected_schema(version).await? {
@@ -268,7 +268,7 @@ async fn validate_connection(c: &mut SqliteConnection, path: &Path) -> Result<Sn
             "Backup integrity, relationships or explicit metadata overrides are invalid. File preserved.",
         ));
     }
-    if version == 3 {
+    if version >= 3 {
         let invalid_group: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM installation_group_members m JOIN installation_groups g ON g.id=m.group_id JOIN game_installations i ON i.id=m.installation_id JOIN library_entries e ON e.id=i.entry_id WHERE g.game_id<>e.game_id)")
             .fetch_one(&mut *c).await?;
         if invalid_group {
@@ -277,6 +277,14 @@ async fn validate_connection(c: &mut SqliteConnection, path: &Path) -> Result<Sn
                 "Installation group relationships are invalid. File preserved.",
             ));
         }
+    }
+    if version >= 4 {
+        super::launch_profiles::validate_all(c).await.map_err(|_| {
+            error(
+                ErrorCode::InvalidDatabase,
+                "LaunchProfile configurations or defaults are invalid. File preserved.",
+            )
+        })?;
     }
     let counts = sqlx::query_as("SELECT (SELECT count(*) FROM games) AS games,(SELECT count(*) FROM library_sources) AS library_sources,(SELECT count(*) FROM library_entries) AS library_entries,(SELECT count(*) FROM game_installations) AS installations").fetch_one(&mut *c).await?;
     Ok(Snapshot {

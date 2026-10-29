@@ -57,7 +57,7 @@ const shot = async (suffix) => {
 };
 try {
   await ready();
-  assert.equal((await invoke("database_get_status")).schemaVersion, 3);
+  assert.equal((await invoke("database_get_status")).schemaVersion, 4);
   if (phase === "organize") {
     const metadata = {
       title: "日本語 Café — copies",

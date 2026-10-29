@@ -636,3 +636,16 @@ h1 {
 .installation-groups select {
   max-width: 100%;
 }
+
+.manual-editor textarea {
+  width: 100%;
+  min-height: 5rem;
+  background: var(--color-surface, #17202c);
+  color: inherit;
+  border: 1px solid #526078;
+  border-radius: 4px;
+  padding: 8px;
+}
+.launch-profiles h4 {
+  overflow-wrap: anywhere;
+}

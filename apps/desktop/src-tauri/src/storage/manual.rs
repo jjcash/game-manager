@@ -172,6 +172,9 @@ pub enum Action {
     RemoveGroup {
         group_id: String,
     },
+    LaunchProfile {
+        action: super::launch_profiles::Action,
+    },
     RemoveGame,
 }
 #[derive(Debug, Serialize, FromRow)]
@@ -212,20 +215,22 @@ pub struct Details {
     pub entries: Vec<Entry>,
     pub installations: Vec<Installation>,
     pub groups: Vec<InstallationGroup>,
+    pub profiles: Vec<super::launch_profiles::Profile>,
+    pub default_profile_id: Option<String>,
 }
-async fn id(c: &mut SqliteConnection) -> Result<String> {
+pub(super) async fn id(c: &mut SqliteConnection) -> Result<String> {
     Ok(sqlx::query_scalar("SELECT lower(hex(randomblob(16)))")
         .fetch_one(c)
         .await?)
 }
-async fn now(c: &mut SqliteConnection) -> Result<i64> {
+pub(super) async fn now(c: &mut SqliteConnection) -> Result<i64> {
     Ok(
         sqlx::query_scalar("SELECT CAST(unixepoch('subsec') * 1000 AS INTEGER)")
             .fetch_one(c)
             .await?,
     )
 }
-async fn application(c: &mut SqliteConnection) -> Result<()> {
+pub(super) async fn application(c: &mut SqliteConnection) -> Result<()> {
     let purpose: String =
         sqlx::query_scalar("SELECT purpose FROM database_metadata WHERE singleton=1")
             .fetch_one(c)
@@ -398,6 +403,12 @@ impl Database {
         .bind(game)
         .fetch_all(&mut *tx)
         .await?;
+        let profiles = super::launch_profiles::list(&mut tx, game).await?;
+        let default_profile_id =
+            sqlx::query_scalar("SELECT profile_id FROM game_launch_defaults WHERE game_id=?")
+                .bind(game)
+                .fetch_optional(&mut *tx)
+                .await?;
         tx.commit().await?;
         Ok(Details {
             id: game.into(),
@@ -408,6 +419,8 @@ impl Database {
             entries,
             installations,
             groups,
+            profiles,
+            default_profile_id,
         })
     }
     pub async fn manual_create(&self, request: &CreateRequest) -> Result<String> {
@@ -436,6 +449,15 @@ impl Database {
         Ok(game)
     }
     pub async fn manual_mutate(&self, request: &MutationRequest) -> Result<()> {
+        if let Action::LaunchProfile { action } = &request.action {
+            return super::launch_profiles::mutate(
+                self,
+                &request.game_id,
+                request.expected_revision,
+                action,
+            )
+            .await;
+        }
         application(&mut *self.pool.acquire().await?).await?;
         let game = &request.game_id;
         text(game, 128, true)?;
@@ -457,6 +479,7 @@ impl Database {
         }
         bounded(&mut tx, game).await?;
         match &request.action {
+            Action::LaunchProfile { .. } => unreachable!("handled above"),
             Action::SaveGroup {
                 group_id,
                 display_name,
@@ -542,6 +565,7 @@ impl Database {
                         "Keep the last membership, or explicitly remove the manual game",
                     ));
                 }
+                refuse_profiles(&mut tx, game, Some(entry_id), None).await?;
                 sqlx::query("DELETE FROM game_installations WHERE entry_id=?")
                     .bind(entry_id)
                     .execute(&mut *tx)
@@ -560,12 +584,14 @@ impl Database {
                 text(installation_id, 128, true)?;
                 let eid: String = sqlx::query_scalar("SELECT i.entry_id FROM game_installations i JOIN library_entries e ON e.id=i.entry_id WHERE i.id=? AND e.game_id=?").bind(installation_id).bind(game).fetch_optional(&mut *tx).await?.ok_or_else(missing)?;
                 own_entry(&mut tx, game, &eid).await?;
+                refuse_profiles(&mut tx, game, None, Some(installation_id)).await?;
                 sqlx::query("DELETE FROM game_installations WHERE id=?")
                     .bind(installation_id)
                     .execute(&mut *tx)
                     .await?;
             }
             Action::RemoveGame => {
+                refuse_profiles(&mut tx, game, None, None).await?;
                 let protected: i64 = sqlx::query_scalar("SELECT count(*) FROM library_entries e JOIN library_sources s ON s.id=e.source_id WHERE e.game_id=? AND (s.source_type<>'manual' OR e.external_item_id IS NOT NULL)").bind(game).fetch_one(&mut *tx).await?;
                 if origin != "manual" || protected != 0 {
                     return Err(conflict(
@@ -597,4 +623,20 @@ impl Database {
         tx.commit().await?;
         Ok(())
     }
+}
+
+async fn refuse_profiles(
+    c: &mut SqliteConnection,
+    game: &str,
+    entry: Option<&str>,
+    installation: Option<&str>,
+) -> Result<()> {
+    let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM launch_profiles p JOIN game_installations i ON i.id=p.installation_id JOIN library_entries e ON e.id=i.entry_id WHERE e.game_id=? AND (? IS NULL OR e.id=?) AND (? IS NULL OR i.id=?))")
+        .bind(game).bind(entry).bind(entry).bind(installation).bind(installation).fetch_one(c).await?;
+    if exists {
+        return Err(conflict(
+            "Remove the LaunchProfiles for the affected installations explicitly before removing this metadata.",
+        ));
+    }
+    Ok(())
 }
