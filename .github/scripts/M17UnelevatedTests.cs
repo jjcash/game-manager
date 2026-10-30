@@ -36,9 +36,17 @@ static class M17UnelevatedTests
     [DllImport("kernel32.dll", SetLastError = true)] static extern uint WaitForSingleObject(IntPtr h, uint milliseconds);
     [DllImport("kernel32.dll", SetLastError = true)] static extern bool GetExitCodeProcess(IntPtr process, out uint code);
     [DllImport("kernel32.dll", SetLastError = true)] static extern bool TerminateProcess(IntPtr process, uint code);
+    [DllImport("kernel32.dll", SetLastError = true)] static extern uint GetConsoleProcessList([Out] uint[] processes, uint count);
 
     static void Check(bool ok, string operation) {
         if (!ok) throw new Win32Exception(Marshal.GetLastWin32Error(), operation);
+    }
+    static void ProbeConsole(string label) {
+        // Read-only observation, not a token/security assertion. A one-entry
+        // buffer suffices to report the count without logging process IDs.
+        uint count = GetConsoleProcessList(new uint[1], 1);
+        int error = count == 0 ? Marshal.GetLastWin32Error() : 0;
+        Console.WriteLine("{0}: console process count={1}; console query error={2}", label, count, error);
     }
     static IntPtr Info(IntPtr token, int kind) {
         uint size;
@@ -226,7 +234,7 @@ static class M17UnelevatedTests
     }
     static int Phase(string phase, IntPtr own, string root) {
         Snapshot(own, "actual " + phase + " child", true);
-        if (phase == "probe") { Console.WriteLine("M17_HARMLESS_STDOUT"); Console.Error.WriteLine("M17_HARMLESS_STDERR"); return 17; }
+        if (phase == "probe") { ProbeConsole("actual probe child"); Console.WriteLine("M17_HARMLESS_STDOUT"); Console.Error.WriteLine("M17_HARMLESS_STDERR"); return 17; }
         if (phase == "prerequisites") { Prerequisites(root); return 0; }
         string cwd = Environment.CurrentDirectory;
         if (phase == "native") {
@@ -250,10 +258,17 @@ static class M17UnelevatedTests
         ProcessInfo process = new ProcessInfo(); bool running = false; int? observedExit = null;
         try {
             string line = Quote(app) + " --child " + phase + " " + Quote(root);
+            // Controlled CI experiment: only the harmless probe uses the default
+            // console arrangement. All compile/test phases retain their flags.
+            uint flags = phase == "probe" ? 0x00000004U : 0x08000004U;
+            if (phase == "probe") {
+                Console.WriteLine("probe: creation flags=0x{0:X8}; environment=NULL (inherit caller); desktop=NULL; inherit handles=False; cwd={1}", flags, Environment.CurrentDirectory);
+                ProbeConsole("probe parent");
+            }
             // NULL environment deliberately inherits the caller's complete block,
             // including Rust/MSVC configuration and any caller-injected secrets.
             // CI configures no secrets; token filtering is not environment isolation.
-            Check(CreateProcessAsUserW(token, app, new StringBuilder(line), IntPtr.Zero, IntPtr.Zero, false, 0x08000004, IntPtr.Zero, Environment.CurrentDirectory, ref startup, out process), "CreateProcessAsUserW " + phase);
+            Check(CreateProcessAsUserW(token, app, new StringBuilder(line), IntPtr.Zero, IntPtr.Zero, false, flags, IntPtr.Zero, Environment.CurrentDirectory, ref startup, out process), "CreateProcessAsUserW " + phase);
             running = true;
             IntPtr childToken;
             Check(OpenProcessToken(process.process, 8, out childToken), "OpenProcessToken suspended " + phase + " child");
@@ -265,9 +280,14 @@ static class M17UnelevatedTests
             running = false;
             uint exit; Check(GetExitCodeProcess(process.process, out exit), "GetExitCodeProcess");
             observedExit = unchecked((int)exit);
-            Console.WriteLine(phase + " actual child exit code: " + exit);
-            if (phase == "probe" && (!ReadLog(stdout).Contains("M17_HARMLESS_STDOUT") || ReadLog(stderr).Trim() != "M17_HARMLESS_STDERR" || exit != 17))
-                throw new InvalidOperationException("Harmless child stdout/stderr/exit mismatch");
+            Console.WriteLine("{0} actual child exit code: {1} (0x{1:X8}; signed {2})", phase, exit, observedExit.Value);
+            if (phase == "probe") {
+                string probeOut = ReadLog(stdout), probeError = ReadLog(stderr);
+                Console.WriteLine("probe streams: stdout exists={0}, chars={1}; stderr exists={2}, chars={3}", File.Exists(stdout), probeOut.Length, File.Exists(stderr), probeError.Length);
+                if (exit != 17) throw new ChildFailure("Harmless probe expected exit 17", observedExit.Value == 0 ? 1 : observedExit.Value);
+                if (!probeOut.Contains("M17_HARMLESS_STDOUT") || probeError.Trim() != "M17_HARMLESS_STDERR")
+                    throw new InvalidOperationException("Harmless child stdout/stderr/exit mismatch");
+            }
             return unchecked((int)exit);
         } catch (Exception error) {
             // Keep the primary failure visible even if cleanup subsequently fails.
