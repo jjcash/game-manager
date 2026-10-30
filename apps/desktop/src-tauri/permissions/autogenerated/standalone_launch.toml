@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-standalone-launch"
+description = "Enables the standalone_launch command without any pre-configured scope."
+commands.allow = ["standalone_launch"]
+
+[[permission]]
+identifier = "deny-standalone-launch"
+description = "Denies the standalone_launch command without any pre-configured scope."
+commands.deny = ["standalone_launch"]

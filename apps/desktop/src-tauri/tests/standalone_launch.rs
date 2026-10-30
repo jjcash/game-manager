@@ -1039,13 +1039,11 @@ fn request_and_production_surface_are_identifier_only() {
         invalid[field] = serde_json::json!("untrusted");
         assert!(serde_json::from_value::<Request>(invalid).is_err());
     }
-    for source in [
-        include_str!("../src/lib.rs"),
-        include_str!("../src/commands.rs"),
-        include_str!("../build.rs"),
-        include_str!("../capabilities/default.json"),
-    ] {
-        assert!(!source.contains("standalone_launch"));
-        assert!(!source.contains("game_launch"));
-    }
+    // M1.8 intentionally registers production IPC. The historical candidate
+    // remains test-only; production must not import its test authority enums.
+    let production = include_str!("../src/launch/mod.rs");
+    assert!(!production.contains("tests/support"));
+    assert!(!production.contains("Authorization::"));
+    assert!(include_str!("../build.rs").contains("\"standalone_launch\""));
+    assert!(!include_str!("../capabilities/default.json").contains("shell:"));
 }

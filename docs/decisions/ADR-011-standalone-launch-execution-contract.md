@@ -1,6 +1,6 @@
 # ADR-011: Standalone launch execution contract
 
-Status: **Proposed — pending review.** M1.7 authorizes isolated synthetic feasibility only. This decision does not authorize production execution or accept itself.
+Status: **Accepted — 2026-10-30 for M1.8**, under explicit user authorization after review against merged M1.7 (`5ff1b1f`). The threat model, native behavior and limitations below are retained. Acceptance authorizes production adoption; verification determines milestone completion.
 
 ## Threat model, decided before implementation
 
@@ -10,7 +10,7 @@ Same-user filesystem changes, junctions, symlinks and other reparses follow norm
 
 In-scope failures include malformed references/arguments, stale frontend state, cross-game IDs, edits/deletion before execution, unsupported provenance/kinds/sources, accidental privilege inheritance, unintended executable search or shell interpretation, process creation failures and leaked parent resources.
 
-## Proposed contract
+## Accepted contract
 
 Preserve ADR-010's `Game → LibraryEntry → Installation → LaunchProfile` identity and schema v4. A future request has only `gameId`, `profileId`, `expectedProfileRevision`, `expectedGameRevision`; reject extra fields. No executable, working directory, raw command line or environment map comes from launch IPC. A deliberate Launch gesture authorizes one attempt for that context. Profile creation/edit/default selection/restore/startup never authorize execution. A frontend boolean is not a persistent grant or proof against compromised same-origin UI; future IPC must enforce Tauri local-window capability admission and the same backend checks.
 
@@ -45,3 +45,11 @@ Recommend returning after creation and immediately dropping the Windows child ha
 ## Review gate
 
 The [M1.7 report](../development/M1.7_STANDALONE_LAUNCH_FEASIBILITY.md) must record native evidence, limitations, exact API behavior and recommendation A or B. M1.8 still needs separate authorization and production admission/IPC/UI design and tests. No schema, backup, production command or capability change is proposed here.
+
+## M1.8 adoption
+
+Review found no unresolved contradiction with ADR-010, schema v4, M1.6 revision behavior, the merged M1.7 native candidate or ADR-009 restore lifecycle. Identifier-only local IPC, coherent preparation, final `BEGIN IMMEDIATE` validation through synchronous creation, and creation-only results are adopted. Historical future-tense descriptions above record the original design; M1.7 remains isolated historical evidence.
+
+Production admission allows one active attempt with immediate busy rejection, without a queue. Admission precedes pool acquisition, preparation and writer reservation. Confirmed restore and shutdown close admission, drain the active attempt, then close services; maintenance never holds a writer reservation while waiting for admission. Blocking native creation owns the admission permit and read-only writer transaction, including if the IPC waiter disappears. Rollback is completed before returning the connection and permit. No database acknowledgement is committed after creation. Success becomes irreversible at successful `CreateProcessW`; subsequent reporting must never retry or terminate that child.
+
+See [M1.8 verification](../development/M1.8_PRODUCTION_STANDALONE_LAUNCH_VERIFICATION.md) for actual verification status. No provider adapter, schema change, supervision, sandbox or executable-content integrity guarantee is added.

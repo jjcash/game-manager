@@ -14,6 +14,7 @@ fn main() {
             "manual_get",
             "manual_create",
             "manual_mutate",
+            "standalone_launch",
             "backup_get_status",
             "backup_create",
             "backup_cancel",

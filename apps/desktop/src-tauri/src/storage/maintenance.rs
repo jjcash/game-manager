@@ -69,6 +69,7 @@ pub(crate) struct Lifecycle {
     pub(crate) path: PathBuf,
     owner: File,
     pub stopping: AtomicBool,
+    pub(crate) launches: crate::launch::Admission,
 }
 impl Lifecycle {
     pub fn acquire(path: &Path) -> Result<Self> {
@@ -89,6 +90,7 @@ impl Lifecycle {
             path: path.into(),
             owner,
             stopping: AtomicBool::new(false),
+            launches: Default::default(),
         })
     }
     pub fn release(&self) {
@@ -663,6 +665,7 @@ impl PreparedRestore {
         std::fs::rename(&staging, &directory).map_err(io)?;
         let lifecycle = db.lifecycle.as_ref().expect("application lifecycle");
         lifecycle.stopping.store(true, Ordering::SeqCst);
+        lifecycle.launches.drain().await;
         db.pool.close().await;
         // Retain the process lock even though SQLx is closed. No other application
         // process can open this root until this process exits.

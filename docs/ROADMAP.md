@@ -240,6 +240,18 @@ Mixed latency and worsened 25k deep-page tails remain documented under unchanged
 
 Recommendation A: proceed to M1.8 production standalone launch **only with separate authorization**, real UI/IPC and maintenance admission, creation-only semantics and production-specific tests. No production launch command/action, schema or backup change is included here. ADR-011 is not automatically accepted. No commit, push, merge or later milestone automatically; Steam remains deferred and M0 E1–E5 remain unchanged.
 
+### M1.8 - Production standalone launch integration
+
+**Implemented with local regression verification on 2026-10-30 from merged M1.7 `5ff1b1f`; ready for code review subject to the external exact-tree native gate.** See [M1.8 verification](development/M1.8_PRODUCTION_STANDALONE_LAUNCH_VERIFICATION.md). ADR-011 is accepted for this adoption; earlier M1.7 descriptions retain their historical proposed status.
+
+- Identifier-only local main-window IPC resolves user-owned standalone profiles on manual Windows installations under schema v4.
+- Coherent preparation and final `BEGIN IMMEDIATE` revalidation span synchronous direct Win32 creation, with literal arguments, NUL-only inheritance and elevated-parent refusal.
+- One active launch, no queue; restore/shutdown close admission and drain active work before service teardown.
+- Explicit profile/default selection and deliberate Launch action; creation-only results, stale refresh and concise errors.
+- Complete local native gates, production-path/native/frontend regressions and optimized builds determine acceptance. Hosted CI compiles native targets without executing them.
+
+No storefront adapter, schema migration, process supervision, session/playtime tracking, mod activation or M1.9 work. No commit, push, PR or merge automatically.
+
 ### Broader remaining M1 scope
 
 Extend the verified Game, LibraryEntry, Installation, grouping and LaunchProfile configuration foundation with separately authorized basic settings and artwork storage. Initial Steam import still depends on separately resolving the deferred reader gate. Preserve explicit user overrides, canonical identity and bounded queries; make future imports idempotent.

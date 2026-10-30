@@ -84,9 +84,9 @@ export function LaunchProfiles({
     <details className="launch-profiles">
       <summary>LaunchProfiles ({details.profiles.length})</summary>
       <p>
-        Configuration only. Launching is not available yet. References receive
-        lexical validation only; no paths are opened or checked. Up to 100
-        profiles per game.
+        Configuration only. Use the separate Launch action to execute.
+        References receive lexical validation only; no paths are opened or
+        checked. Up to 100 profiles per game.
       </p>
       {details.installations.map((i) => (
         <section key={i.id} aria-label={`Profiles for ${i.id}`}>

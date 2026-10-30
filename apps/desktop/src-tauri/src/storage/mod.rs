@@ -400,6 +400,12 @@ impl Database {
     }
 
     pub async fn close(&self) {
+        if let Some(lifecycle) = &self.lifecycle {
+            lifecycle
+                .stopping
+                .store(true, std::sync::atomic::Ordering::SeqCst);
+            lifecycle.launches.drain().await;
+        }
         self.pool.close().await;
         if let Some(lifecycle) = &self.lifecycle {
             lifecycle.release();

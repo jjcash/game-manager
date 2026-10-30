@@ -10,6 +10,7 @@ import {
   type Metadata,
 } from "../../ipc/manual";
 import { pageGate } from "./requestGate";
+import { StandaloneLaunch } from "./StandaloneLaunch";
 import { LaunchProfiles } from "./LaunchProfiles";
 import { InstallationGroups } from "./InstallationGroups";
 
@@ -271,8 +272,8 @@ export function ManualEditor({
     >
       <h2>{title}</h2>
       <p>
-        Library records only. Locations are user assertions; Game Manager does
-        not inspect, install, launch or remove game files.
+        Locations are user assertions. Editing library records never changes
+        game files. Only the explicit Launch action runs a saved executable.
       </p>
       {error && <p role="alert">{error}</p>}
       {loading && <p>Loading game…</p>}
@@ -407,6 +408,17 @@ export function ManualEditor({
               </label>
               <button>Add membership</button>
             </form>
+            <StandaloneLaunch
+              key={details.id}
+              details={details}
+              refresh={async () => {
+                const controller = new AbortController();
+                const next = await pageGate.run(controller.signal, () =>
+                  getManual(details.id),
+                );
+                setDetails(next);
+              }}
+            />
             <LaunchProfiles
               details={details}
               save={run}

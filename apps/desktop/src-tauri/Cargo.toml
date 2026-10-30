@@ -30,7 +30,7 @@ tempfile = "3"
 
 [target.'cfg(windows)'.dependencies]
 # Native backup file pickers; no frontend filesystem or dialog grants.
-windows-sys = { version = "=0.61.2", features = ["Win32_UI_Controls_Dialogs", "Win32_Storage_FileSystem"] }
+windows-sys = { version = "=0.61.2", features = ["Win32_UI_Controls_Dialogs", "Win32_Storage_FileSystem", "Win32_Foundation", "Win32_Security", "Win32_System_Threading"] }
 
 [features]
 benchmarks = []
