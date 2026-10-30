@@ -372,3 +372,17 @@ For the M1.4-to-M1.5 ordinary-service comparison, run `./benchmarks/manual-query
 Build the ordinary optimized application, then run `./benchmarks/launch-profiles.ps1 -ResultsDirectory ABSOLUTE_NEW_DISPOSABLE_ROOT`. It verifies native create/edit/duplicate/removal, literal arrays, explicit defaults, configuration rejection, restrictive installation deletion, keyboard/modal behavior and restart identity/revisions. Every recorded path is synthetic metadata; no target is accessed or executed. Screenshots and exact persisted details are retained under the new root. `backup.ps1` additionally restores an earlier profile's arguments/default/IDs/revisions after changing its saved configuration.
 
 For the M1.5-to-M1.6 ordinary-service comparison use `manual-query.ps1 -ResultsDirectory ABSOLUTE_NEW_ROOT -BaselineExecutable ABSOLUTE_M1_5_EXE -BaselineSchema 3 -CandidateSchema 4`. Use the existing feature binary browsing/query scenarios at 15k/25k and ordinary `-NormalSmoke` separately. Stop competing builds/tests before timing. Six frozen generator-v1 hashes must remain unchanged. See [M1.6 verification](../docs/development/M1.6_LAUNCH_PROFILE_VERIFICATION.md) for exact evidence and limitations.
+
+## M1.8 production standalone launch verification
+
+Build the ordinary optimized application, close existing Game Manager windows, then run:
+
+```powershell
+./benchmarks/standalone-launch.ps1 -ResultsDirectory ABSOLUTE_NEW_DISPOSABLE_ROOT
+cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --all-features --locked --test standalone_launch -- --test-threads=1 --nocapture
+cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --all-features --locked --test standalone_launch_production -- --test-threads=1 --nocapture
+```
+
+The smoke runner compiles the harmless existing Rust child inside its new test-owned root. It exercises real persisted profiles, keyboard Launch activation through ordinary Tauri IPC, literal arguments/CWD, no implicit default, one-time selection, stale refresh and restart without automatic execution. It never launches a personal game. Preserve its screenshots/JSON locally; generated executables and databases stay ignored.
+
+Run both complete native targets from an ordinary unelevated Windows desktop and require 12/12 and 9/9 outer tests respectively, with no failed, ignored or filtered outer cases. Preserve exact native handle-recovery assertions. GitHub-hosted CI compiles both targets without executing them; the local security gate is mandatory and separately documented, not enforced by branch protection. Record exact source/candidate tree, environment, commands, summaries and cleanup under the [accepted policy](../docs/development/M1.7_CI_AND_NATIVE_VERIFICATION_POLICY.md) and [M1.8 report](../docs/development/M1.8_PRODUCTION_STANDALONE_LAUNCH_VERIFICATION.md). Repeat affected native verification after source/dependency/security-boundary changes.

@@ -13,6 +13,7 @@
     "allow-manual-get",
     "allow-manual-create",
     "allow-manual-mutate",
+    "allow-standalone-launch",
     "allow-backup-get-status",
     "allow-backup-create",
     "allow-backup-cancel",

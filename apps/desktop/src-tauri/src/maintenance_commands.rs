@@ -11,7 +11,7 @@ use std::sync::{
 };
 
 #[derive(Default)]
-struct Session {
+pub(crate) struct Session {
     candidate: Option<PreparedRestore>,
     token: u32,
 }
@@ -19,6 +19,21 @@ struct Session {
 pub struct MaintenanceState {
     session: tokio::sync::Mutex<Session>,
     cancel: Arc<AtomicBool>,
+    closing: AtomicBool,
+}
+impl MaintenanceState {
+    pub(crate) async fn drain_for_shutdown(&self) -> tokio::sync::MutexGuard<'_, Session> {
+        self.closing.store(true, Ordering::SeqCst);
+        self.cancel.store(true, Ordering::SeqCst);
+        self.session.lock().await
+    }
+    fn admit(&self) -> storage::Result<tokio::sync::MutexGuard<'_, Session>> {
+        let session = self.session.try_lock().map_err(|_| busy())?;
+        if self.closing.load(Ordering::SeqCst) {
+            return Err(busy());
+        }
+        Ok(session)
+    }
 }
 fn busy() -> StorageError {
     StorageError::new(
@@ -58,7 +73,7 @@ pub async fn backup_get_status(
     state: tauri::State<'_, crate::DatabaseState>,
     maintenance: tauri::State<'_, MaintenanceState>,
 ) -> storage::Result<Status> {
-    let session = maintenance.session.try_lock().map_err(|_| busy())?;
+    let session = maintenance.admit()?;
     let db = state
         .database
         .get()
@@ -91,7 +106,7 @@ pub async fn backup_create(
     state: tauri::State<'_, crate::DatabaseState>,
     maintenance: tauri::State<'_, MaintenanceState>,
 ) -> storage::Result<Option<Snapshot>> {
-    let session = maintenance.session.try_lock().map_err(|_| busy())?;
+    let session = maintenance.admit()?;
     if session.candidate.is_some() {
         return Err(busy());
     }
@@ -116,7 +131,7 @@ pub async fn backup_select_restore(
     state: tauri::State<'_, crate::DatabaseState>,
     maintenance: tauri::State<'_, MaintenanceState>,
 ) -> storage::Result<Option<Candidate>> {
-    let mut session = maintenance.session.try_lock().map_err(|_| busy())?;
+    let mut session = maintenance.admit()?;
     if session.candidate.is_some() {
         return Err(busy());
     }
@@ -140,7 +155,7 @@ pub async fn backup_select_restore(
 pub async fn backup_cancel_restore(
     maintenance: tauri::State<'_, MaintenanceState>,
 ) -> storage::Result<()> {
-    let mut session = maintenance.session.try_lock().map_err(|_| busy())?;
+    let mut session = maintenance.admit()?;
     session.candidate.take();
     Ok(())
 }
@@ -150,7 +165,7 @@ pub async fn backup_confirm_restore(
     maintenance: tauri::State<'_, MaintenanceState>,
     token: u32,
 ) -> storage::Result<()> {
-    let mut session = maintenance.session.try_lock().map_err(|_| busy())?;
+    let mut session = maintenance.admit()?;
     if session.token != token {
         return Err(busy());
     }
@@ -162,7 +177,11 @@ pub async fn backup_confirm_restore(
 pub fn backup_restart(
     app: tauri::AppHandle,
     state: tauri::State<'_, crate::DatabaseState>,
+    maintenance: tauri::State<'_, MaintenanceState>,
 ) -> storage::Result<()> {
+    // Pool closure alone is insufficient: confirmation may still be publishing
+    // preserved snapshots/intent. Serialize with the complete confirmation.
+    let session = maintenance.admit()?;
     let db = state
         .database
         .get()
@@ -174,6 +193,10 @@ pub fn backup_restart(
     // Tauri spawns before exiting the old process. Only a fully drained, gated
     // database may release its ownership lock for that controlled handoff.
     db.release_for_restart().map_err(public)?;
+    maintenance.closing.store(true, Ordering::SeqCst);
+    // restart() may wait for ExitRequested; never retain the session while the
+    // exit handler drains it. This closed state rejects any later maintenance.
+    drop(session);
     app.restart();
 }
 
@@ -201,6 +224,7 @@ async fn choose(
         ))
     }
 }
+
 #[cfg(windows)]
 fn native_dialog(owner: usize, save: bool) -> storage::Result<Option<std::path::PathBuf>> {
     use std::os::windows::ffi::OsStringExt;
@@ -261,4 +285,26 @@ fn native_dialog(owner: usize, save: bool) -> storage::Result<Option<std::path::
     }
     let end = filename.iter().position(|v| *v == 0).ok_or_else(busy)?;
     Ok(Some(std::ffi::OsString::from_wide(&filename[..end]).into()))
+}
+
+#[cfg(test)]
+mod shutdown_tests {
+    use super::*;
+    #[tokio::test]
+    async fn shutdown_closes_maintenance_admission_and_waits_for_active_session() {
+        let maintenance = MaintenanceState::default();
+        let active = maintenance.admit().unwrap();
+        let mut shutdown = Box::pin(maintenance.drain_for_shutdown());
+        assert!(
+            std::future::poll_fn(|cx| std::task::Poll::Ready(
+                shutdown.as_mut().poll(cx).is_pending()
+            ))
+            .await
+        );
+        assert!(maintenance.closing.load(Ordering::SeqCst));
+        assert!(maintenance.cancel.load(Ordering::SeqCst));
+        drop(active);
+        drop(shutdown.await);
+        assert!(maintenance.admit().is_err());
+    }
 }

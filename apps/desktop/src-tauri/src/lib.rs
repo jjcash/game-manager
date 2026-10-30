@@ -4,6 +4,7 @@ pub mod artwork;
 mod commands;
 #[cfg(feature = "benchmarks")]
 pub mod jobs;
+pub mod launch;
 mod maintenance_commands;
 pub mod scheduling;
 pub mod storage;
@@ -104,6 +105,8 @@ pub struct DatabaseState {
     source: String,
     synthetic_jobs: bool,
     artwork_workers: u8,
+    shutting_down: std::sync::atomic::AtomicBool,
+    shutdown_drained: std::sync::atomic::AtomicBool,
 }
 
 impl DatabaseState {
@@ -309,6 +312,7 @@ pub fn run() {
         commands::manual_get,
         commands::manual_create,
         commands::manual_mutate,
+        launch::standalone_launch,
         maintenance_commands::backup_get_status,
         maintenance_commands::backup_create,
         maintenance_commands::backup_cancel,
@@ -330,6 +334,7 @@ pub fn run() {
         commands::manual_get,
         commands::manual_create,
         commands::manual_mutate,
+        launch::standalone_launch,
         maintenance_commands::backup_get_status,
         maintenance_commands::backup_create,
         maintenance_commands::backup_cancel,
@@ -375,25 +380,50 @@ pub fn run() {
         if matches!(event, tauri::RunEvent::Exit) {
             startup_flush();
         }
-        #[cfg(feature = "benchmarks")]
-        if let tauri::RunEvent::ExitRequested { api, code, .. } = event
-            && code.is_none()
-            && let Some(scheduler) = app.state::<JobState>().0.get().cloned()
-        {
-            api.prevent_exit();
-            let handle = app.clone();
-            tauri::async_runtime::spawn(async move {
-                let code = if let Err(error) = scheduler.shutdown().await {
-                    eprintln!("Synthetic shutdown: {error}");
-                    1
-                } else {
-                    0
-                };
-                handle.exit(code);
-            });
+        if let tauri::RunEvent::ExitRequested { api, code, .. } = event {
+            // Tauri ignores prevent_exit for restart. Our only restart command
+            // already drains launch/DB work and serializes full confirmation.
+            if code == Some(tauri::RESTART_EXIT_CODE) {
+                return;
+            }
+            use std::sync::atomic::Ordering;
+            let state = app.state::<DatabaseState>();
+            if !state.shutdown_drained.load(Ordering::SeqCst) {
+                api.prevent_exit();
+                if !state.shutting_down.swap(true, Ordering::SeqCst) {
+                    let handle = app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let state = handle.state::<DatabaseState>();
+                        if let Some(Ok(db)) = state.database.get()
+                            && let Some(lifecycle) = &db.lifecycle
+                        {
+                            lifecycle.launches.drain().await;
+                        }
+                        let maintenance = handle.state::<maintenance_commands::MaintenanceState>();
+                        let _maintenance = maintenance.drain_for_shutdown().await;
+                        let exit_code = code.unwrap_or(0);
+                        #[cfg(feature = "benchmarks")]
+                        let exit_code =
+                            if let Some(scheduler) = handle.state::<JobState>().0.get().cloned() {
+                                match scheduler.shutdown().await {
+                                    Ok(()) => exit_code,
+                                    Err(error) => {
+                                        eprintln!("Synthetic shutdown: {error}");
+                                        1
+                                    }
+                                }
+                            } else {
+                                exit_code
+                            };
+                        if let Some(Ok(db)) = state.database.get() {
+                            db.close().await;
+                        }
+                        state.shutdown_drained.store(true, Ordering::SeqCst);
+                        handle.exit(exit_code);
+                    });
+                }
+            }
         }
-        #[cfg(not(feature = "benchmarks"))]
-        let _ = (app, event);
     });
 }
 
