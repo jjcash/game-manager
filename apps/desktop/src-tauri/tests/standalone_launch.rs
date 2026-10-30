@@ -801,8 +801,14 @@ async fn no_privileged_handle_inheritance_and_bounded_cleanup() {
         unsafe { WaitForSingleObject(event.as_raw_handle(), 0) },
         WAIT_OBJECT_0
     );
-    // Counts are measured in an exact single-test subprocess, excluding other
-    // Rust test runtimes. The threshold is identical to the serial native test.
+    // Profile creation uses a separate SQLx pool that lazily opens connections.
+    // Its three-file connection growth is fixture work, not launcher ownership.
+    // Finish configuration and close that pool before measuring the full launch
+    // path on the already-open dedicated connection. No launcher warmup is added.
+    let request = f.add().await;
+    f.db.close().await;
+    // Exact single-test subprocess excludes other test runtimes. Every launch
+    // must retain exactly its returned process handle and release it after wait.
     let count = || {
         let mut n = 0;
         assert_ne!(
@@ -812,14 +818,20 @@ async fn no_privileged_handle_inheritance_and_bounded_cleanup() {
         n
     };
     let before = count();
-    for _ in 0..20 {
-        let r = f.add().await;
-        wait(f.run(r).await);
+    for iteration in 0..20 {
+        let created = f.run(request.clone()).await;
+        assert_eq!(
+            count(),
+            before + 1,
+            "only the returned process handle: {iteration}"
+        );
+        wait(created);
+        assert_eq!(count(), before, "retained handles after launch {iteration}");
     }
     let after = count();
     println!("M17 handles before={before} after={after}; 20 completed repeat launches");
-    assert!(
-        after <= before + 2,
+    assert_eq!(
+        after, before,
         "unexpected retained handles: {before} -> {after}"
     );
     f.close().await;

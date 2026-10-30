@@ -123,4 +123,6 @@ jobs:
             Format-List
 
       - name: Rust unit, integration and documentation tests
-        run: pnpm test:rust
+        # Probe and verify the child token before fixtures, then require all 12
+        # native tests and the unchanged pnpm test:rust command in that context.
+        run: ../../.github/scripts/Invoke-M17UnelevatedTests.ps1
