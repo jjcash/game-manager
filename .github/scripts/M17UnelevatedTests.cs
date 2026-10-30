@@ -258,11 +258,11 @@ static class M17UnelevatedTests
         ProcessInfo process = new ProcessInfo(); bool running = false; int? observedExit = null;
         try {
             string line = Quote(app) + " --child " + phase + " " + Quote(root);
-            // Controlled CI experiment: only the harmless probe uses the default
-            // console arrangement. All compile/test phases retain their flags.
-            uint flags = phase == "probe" ? 0x00000004U : 0x08000004U;
+            // Final bounded CI experiment: every fixed helper phase uses the
+            // console-compatible arrangement demonstrated by the hosted probe.
+            uint flags = 0x00000004U; // CREATE_SUSPENDED, without CREATE_NO_WINDOW.
+            Console.WriteLine("{0}: creation flags=0x{1:X8}; environment=NULL (inherit caller); desktop=NULL; inherit handles=False; cwd={2}", phase, flags, Environment.CurrentDirectory);
             if (phase == "probe") {
-                Console.WriteLine("probe: creation flags=0x{0:X8}; environment=NULL (inherit caller); desktop=NULL; inherit handles=False; cwd={1}", flags, Environment.CurrentDirectory);
                 ProbeConsole("probe parent");
             }
             // NULL environment deliberately inherits the caller's complete block,
