@@ -21,6 +21,8 @@ Use new ADRs for future material architectural changes and link superseded recor
 
 ## Review and documentation alignment
 
+[ADR-011](ADR-011-standalone-launch-execution-contract.md) is **proposed, pending review**. It describes M1.7's execution-specific threat model, identifier/revision-only future request, deterministic references, literal arguments, native handle/privilege boundary and creation-only lifecycle. The [M1.7 report](../development/M1.7_STANDALONE_LAUNCH_FEASIBILITY.md) governs feasibility evidence. It neither accepts this ADR nor authorizes M1.8 production IPC/UI integration; ADR-010's identities and schema v4 remain unchanged.
+
 [ADR-009](ADR-009-offline-library-restore-lifecycle.md) records the M1.4 implementation decision for consistent snapshots and a process-exclusive, restart-bound restore/recovery lifecycle. Its verification report governs implementation claims; ADR-007 exceptions and accepted ADR-008 remain unchanged, and Steam discovery remains deferred.
 
 ADR-001 through ADR-005 were reviewed against the recovered conversation and reconciled specifications. That review corrected the existing records; it did not accept a new architecture, implement features, or validate performance. ADR-006 is a later explicit user decision to adopt GPL-3.0-or-later.

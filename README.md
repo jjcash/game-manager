@@ -4,7 +4,7 @@ A free and open-source, local-first Windows desktop game library, launcher, and 
 
 The desktop application in `apps/desktop/` provides a persistent manual game library in the existing virtualized Details View. **Add game** creates an independent canonical game and manual membership, with optional installation metadata. Select a row and choose **Manage selected game** to save metadata overrides, add/update/remove manual memberships, and record/edit/remove installation metadata. Removal confirmations describe the affected records; no game files are accessed. A fresh normal database is empty, and changes survive restart. See [M1.1 verification](docs/development/M1.1_VERIFICATION.md) for evidence and limits. Mods remains a placeholder; Settings contains local library backup and restore.
 
-**M1.4 offline library backup and restore is verified within its documented scope.** In Settings, **Create backup…** selects a new destination for a verified standalone SQLite snapshot. **Select backup to restore…** validates a private copy before replacement confirmation. Confirmation closes the library and preserves its previous state; **Restart and finish** applies and verifies restoration before opening services. Restoration replaces records rather than merging them. Backups are unencrypted, exclude artwork/game/mod files, accept exact application schemas v2, v3 and v4 (older schemas upgrade only on the restored active copy) and are limited to 1 GiB. Use a local drive with hard-link support; NTFS is the verified test filesystem. Recovery directories remain in the application database directory and are never automatically deleted. See [M1.4 verification](docs/development/M1.4_BACKUP_RESTORE_VERIFICATION.md) for lifecycle, native restart, interruption tests, screenshots and limits, and [M1.6 verification](docs/development/M1.6_LAUNCH_PROFILE_VERIFICATION.md) for current compatibility.
+**M1.4 offline library backup and restore is verified within its documented scope.** In Settings, **Create backupâ€¦** selects a new destination for a verified standalone SQLite snapshot. **Select backup to restoreâ€¦** validates a private copy before replacement confirmation. Confirmation closes the library and preserves its previous state; **Restart and finish** applies and verifies restoration before opening services. Restoration replaces records rather than merging them. Backups are unencrypted, exclude artwork/game/mod files, accept exact application schemas v2, v3 and v4 (older schemas upgrade only on the restored active copy) and are limited to 1 GiB. Use a local drive with hard-link support; NTFS is the verified test filesystem. Recovery directories remain in the application database directory and are never automatically deleted. See [M1.4 verification](docs/development/M1.4_BACKUP_RESTORE_VERIFICATION.md) for lifecycle, native restart, interruption tests, screenshots and limits, and [M1.6 verification](docs/development/M1.6_LAUNCH_PROFILE_VERIFICATION.md) for current compatibility.
 
 **M1.5 installation grouping is locally verified.** It adds a compact **Organize installation groups** section to **Manage selected game**. Create or rename a group, select an installation and explicitly save its assignment, or choose **Ungrouped**. Groups belong to one canonical game and can span its memberships. Removing a group confirms that only organization is removed; installation records and files remain untouched. Duplicate names have independent IDs. M1.5 introduced application schema v3; frozen benchmarks stay v1. See [verification](docs/development/M1.5_INSTALLATION_GROUPING_VERIFICATION.md) and [ADR-010](docs/decisions/ADR-010-installation-grouping-and-launch-profile-identity.md).
 
@@ -18,13 +18,13 @@ The [M0.2 verification report](docs/development/M0.2_VERIFICATION.md) records th
 
 ## Read the documentation
 
-**M0 is conditionally closed with accepted exceptions E1–E5; M1.1 is the verified manual-library foundation.** The user confirmed M0.8 CI and merge on 2026-10-28 and accepted [ADR-007](docs/decisions/ADR-007-conditional-m0-performance-gate.md). Original targets and the [M0.8 measurements](docs/development/M0.8_GATE_DISPOSITION.md) remain unchanged. Storefront importing, discovery, launching and mod work remain future scope.
+**M0 is conditionally closed with accepted exceptions E1â€“E5; M1.1 is the verified manual-library foundation.** The user confirmed M0.8 CI and merge on 2026-10-28 and accepted [ADR-007](docs/decisions/ADR-007-conditional-m0-performance-gate.md). Original targets and the [M0.8 measurements](docs/development/M0.8_GATE_DISPOSITION.md) remain unchanged. Storefront importing, discovery, launching and mod work remain future scope.
 
 | Document                                                        | Purpose                                                       |
 | --------------------------------------------------------------- | ------------------------------------------------------------- |
 | [AGENTS](AGENTS.md)                                             | Permanent agent instructions, scope and safety                |
 | [Project status](docs/PROJECT_STATUS.md)                        | Actual implementation status                                  |
-| [Roadmap](docs/ROADMAP.md)                                      | M0–M5 gates and later work                                    |
+| [Roadmap](docs/ROADMAP.md)                                      | M0â€“M5 gates and later work                                  |
 | [PRD](docs/specifications/PRD.md)                               | Full product baseline and confirmed priorities                |
 | [TAS](docs/specifications/TAS.md)                               | Modules, interfaces, workflows and performance budgets        |
 | [DSS](docs/specifications/DSS.md)                               | Detailed identity/schema/storage design and reference SQL     |
@@ -41,7 +41,7 @@ The [M0.2 verification report](docs/development/M0.2_VERIFICATION.md) records th
 - Managed copy deployment first, game-specific and launch-time activation, links later, virtual filesystem later. Detect existing mods read-only; adoption is explicit.
 - One polished dark theme first. Game Tools, external-first trainers, Android companion, richer themes, dashboards and extensions are later scope.
 
-Integration priority: Steam → GOG → Epic Games → Ubisoft Connect → EA App → Amazon Games → emulators (RomM, RetroArch, RetroAchievements) → Battle.net → itch.io → standalone executables. Manual entry and standalone launching remain MVP requirements.
+Integration priority: Steam â†’ GOG â†’ Epic Games â†’ Ubisoft Connect â†’ EA App â†’ Amazon Games â†’ emulators (RomM, RetroArch, RetroAchievements) â†’ Battle.net â†’ itch.io â†’ standalone executables. Manual entry and standalone launching remain MVP requirements.
 
 Mod targets: Half-Life 2, classic Doom II (not the reboot), Stardew Valley, Minecraft, Cyberpunk 2077, Skyrim, Baldur's Gate 3 and Terraria. First candidates: Half-Life 2, classic Doom II and Stardew Valley. These are intended targets, not working compatibility claims.
 
@@ -68,7 +68,7 @@ Open a new terminal after installing prerequisites. If tools are installed but m
 $env:Path = "$env:USERPROFILE\.cargo\bin;$env:LOCALAPPDATA\pnpm\bin;$env:Path"
 ```
 
-`pnpm desktop:dev` starts Vite on `127.0.0.1:1420` and opens Tauri. The **Desktop connection** panel should show **Rust backend connected · Game Manager 0.1.0**. **Check again** repeats the real IPC call. Library displays SQLite data (an empty library on a fresh normal database); Settings provides offline library backup/restore and Mods remains a placeholder. Browser-only previews show an actionable IPC error. No game files are accessed.
+`pnpm desktop:dev` starts Vite on `127.0.0.1:1420` and opens Tauri. The **Desktop connection** panel should show **Rust backend connected Â· Game Manager 0.1.0**. **Check again** repeats the real IPC call. Library displays SQLite data (an empty library on a fresh normal database); Settings provides offline library backup/restore and Mods remains a placeholder. Browser-only previews show an actionable IPC error. No game files are accessed.
 
 ## Development commands
 
@@ -93,11 +93,11 @@ The release executable is `apps/desktop/src-tauri/target/release/game-manager.ex
 
 ## Continuous integration
 
-[CI](.github/workflows/ci.yml) runs one **Windows quality checks** job on `windows-2025` for pull requests targeting `main`, pushes to `main`, and manual runs. It checks TypeScript, ESLint, Prettier/rustfmt, frontend tests, Clippy with warnings denied, Rust tests, and the production frontend/native Tauri build. Tauri invokes `pnpm build` before native compilation; CI does not build the frontend separately.
+[CI](.github/workflows/ci.yml) retains **Windows quality checks** on `windows-2025` for pull requests targeting `main`, pushes to `main`, and manual runs. It checks TypeScript, ESLint, Prettier/rustfmt, frontend tests, all-target Clippy with warnings denied, ordinary Rust tests and documentation tests, and the production frontend/native Tauri build. It compiles the `standalone_launch` target without executing its native fixtures on the elevated hosted runner. Tauri invokes `pnpm build` before native compilation.
 
-CI pins Node.js 26.12.1, reads pnpm 12.15.0 from `package.json`, and pins Rust 1.99.1 for Windows MSVC with rustfmt and Clippy. It installs with frozen/locked dependencies, caches dependency downloads only, and cancels superseded runs. `.gitattributes` keeps text checkouts on LF for consistent formatting checks on Windows. Official actions are pinned to commit SHAs; permissions are read-only, checkout credentials are not retained, and no secrets, installer uploads, publishing, or deployment are configured.
+CI pins Node.js 26.12.1, reads pnpm 12.15.0 from `package.json`, and pins Rust 1.99.1 for Windows MSVC with rustfmt and Clippy. It installs with frozen/locked dependencies, caches hosted dependency downloads only, and cancels superseded runs. `.gitattributes` keeps text checkouts on LF for consistent formatting checks on Windows. Official actions are pinned to commit SHAs; permissions are read-only and checkout credentials are not retained.
 
-**M0.1.1 awaits its first successful GitHub run.** Local evidence and the approval-dependent commit/push instructions are in the [CI verification report](docs/development/M0.1.1_CI_VERIFICATION.md). After the check appears on GitHub, configure the `main` branch rules to require **Windows quality checks** before merging; the workflow alone does not enforce branch protection.
+The [M1.7 CI and native verification policy](docs/development/M1.7_CI_AND_NATIVE_VERIFICATION_POLICY.md) requires all 12 native security tests locally on an unelevated Windows desktop for milestone and release acceptance, with evidence tied to the intended source tree. GitHub Actions does not continuously execute those tests or enforce this manual gate. The existing ruleset requires **Windows quality checks**. `pnpm test:rust` remains the full local Rust suite.
 
 ## Source layout and boundaries
 
@@ -188,7 +188,7 @@ This project license does not automatically relicense third-party game artwork, 
 
 ## Synthetic artwork prototype (M0.5)
 
-Artwork uses a separate two-job Rust service and two-request frontend scheduler; it never holds the SQL request gate. Only visible/overscan rows request 64×36 PNG thumbnails for the fixed 48×27 column. Original PNG/JPEG files stay in the controlled fixture root; React receives bounded image data through an ID-only command. Missing and damaged artwork are ordinary placeholder states. There is no filesystem URL scope or real-artwork acquisition.
+Artwork uses a separate two-job Rust service and two-request frontend scheduler; it never holds the SQL request gate. Only visible/overscan rows request 64Ã—36 PNG thumbnails for the fixed 48Ã—27 column. Original PNG/JPEG files stay in the controlled fixture root; React receives bounded image data through an ID-only command. Missing and damaged artwork are ordinary placeholder states. There is no filesystem URL scope or real-artwork acquisition.
 
 Both result caches retain at most 128 entries; the frontend queue is capped at 32 jobs and derived disk storage at 256 files/4 MiB. Only explicit benchmark builds honor `GAME_MANAGER_BENCHMARK_ARTWORK`. Normal startup generates neither artwork nor library records. Sources, derived thumbnails and temporary writes are separate. See the [M0.5 report](docs/development/M0.5_VERIFICATION.md) for source/decode caps, invalidation, security tests, repeatable commands and limitations.
 
@@ -210,7 +210,7 @@ Measured present-entry sets reduce broad installed counts and filter latency wit
 
 ## Integrated performance validation (M0.7C)
 
-The [M0.7C verification report](docs/development/M0.7C_VERIFICATION.md) consolidates deep-page SQL/IPC/row-arrival timing, reversed resource-fairness controls, 100–150-cycle memory workloads with idle recovery, whole-process startup, actual HDD/contended-disk tests and font/native regressions. [Benchmark procedures](benchmarks/README.md#m07c-integrated-validation) describe the new independent drivers and timing limits. Historical reports, seed-42 reference fixtures and retained artifact hashes are preserved.
+The [M0.7C verification report](docs/development/M0.7C_VERIFICATION.md) consolidates deep-page SQL/IPC/row-arrival timing, reversed resource-fairness controls, 100â€“150-cycle memory workloads with idle recovery, whole-process startup, actual HDD/contended-disk tests and font/native regressions. [Benchmark procedures](benchmarks/README.md#m07c-integrated-validation) describe the new independent drivers and timing limits. Historical reports, seed-42 reference fixtures and retained artifact hashes are preserved.
 
 The investigation is complete within its tested synthetic scope; **M0 remains open**. Deep-page/load tails, relation-heavy fixtures and warm startup miss provisional targets. Captured mixed memory stabilizes late and substantially recovers at idle, without proving leak freedom. Lower-RAM hardware, other physical scaling, OS-cold storage and actual displayed-frame performance remain unverified. M0.7B queries, optional title fonts, two artwork workers and default admission are retained. No real importer or later milestone is started.
 

@@ -96,5 +96,32 @@ jobs:
       - name: Rust Clippy (all targets, deny warnings)
         run: pnpm lint:rust
 
+      - name: Diagnose Windows runner security context
+        shell: pwsh
+        run: |
+          Write-Host "Runner OS: $env:RUNNER_OS"
+          Write-Host "Runner image: $env:ImageOS $env:ImageVersion"
+
+          whoami /user
+          # Includes administrator group attributes and the mandatory integrity label.
+          whoami /groups
+          whoami /priv
+
+          $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+          try {
+            $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+            $adminEnabled = $principal.IsInRole(
+              [Security.Principal.WindowsBuiltInRole]::Administrator
+            )
+            Write-Host "Administrator role enabled: $adminEnabled"
+          } finally {
+            $identity.Dispose()
+          }
+
+          Get-CimInstance Win32_OperatingSystem |
+            Select-Object Caption, Version, BuildNumber, OSArchitecture |
+            Format-List
+
       - name: Rust unit, integration and documentation tests
-        run: pnpm test:rust
+        # Compile standalone_launch here; execute it only under the documented local gate.
+        run: ../../.github/scripts/Invoke-RustCiTests.ps1 -Suite hosted
