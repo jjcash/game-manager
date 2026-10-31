@@ -126,6 +126,38 @@ it("does not notify released active subscribers", async () => {
   expect(listener).not.toHaveBeenCalled();
   expect(queue.active).toBe(0);
 });
+it("refresh generations discard old completions without releasing native capacity early", async () => {
+  vi.useFakeTimers();
+  const old = deferred(),
+    next = deferred();
+  const load = vi
+    .fn()
+    .mockReturnValueOnce(old.promise)
+    .mockReturnValueOnce(next.promise);
+  const queue = new ArtworkQueue(load);
+  queue.configure(1);
+  const stale = vi.fn(),
+    current = vi.fn();
+  queue.subscribe("same", 0, stale);
+  await vi.advanceTimersByTimeAsync(16);
+  queue.clear();
+  queue.subscribe("same", 0, current);
+  await vi.advanceTimersByTimeAsync(16);
+  expect(load).toHaveBeenCalledTimes(1);
+  expect(queue.active).toBe(1);
+  old.resolve(ready);
+  await vi.advanceTimersByTimeAsync(32);
+  expect(stale).not.toHaveBeenCalled();
+  expect(current).not.toHaveBeenCalled();
+  expect(queue.cached).toBe(0);
+  expect(load).toHaveBeenCalledTimes(2);
+  next.resolve({ ...ready, dataUrl: null, status: "missing" });
+  await vi.advanceTimersByTimeAsync(32);
+  expect(current).toHaveBeenCalledWith(
+    expect.objectContaining({ status: "missing" }),
+  );
+  expect(queue.maxActive).toBe(1);
+});
 it("supports zero or one artwork worker without an unbounded queue", async () => {
   vi.useFakeTimers();
   const pending = deferred();

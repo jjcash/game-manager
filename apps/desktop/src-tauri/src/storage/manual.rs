@@ -217,6 +217,7 @@ pub struct Details {
     pub groups: Vec<InstallationGroup>,
     pub profiles: Vec<super::launch_profiles::Profile>,
     pub default_profile_id: Option<String>,
+    pub artwork_asset_id: Option<String>,
 }
 pub(super) async fn id(c: &mut SqliteConnection) -> Result<String> {
     Ok(sqlx::query_scalar("SELECT lower(hex(randomblob(16)))")
@@ -409,6 +410,11 @@ impl Database {
                 .bind(game)
                 .fetch_optional(&mut *tx)
                 .await?;
+        let artwork_asset_id =
+            sqlx::query_scalar("SELECT asset_id FROM game_artwork WHERE game_id=?")
+                .bind(game)
+                .fetch_optional(&mut *tx)
+                .await?;
         tx.commit().await?;
         Ok(Details {
             id: game.into(),
@@ -421,6 +427,7 @@ impl Database {
             groups,
             profiles,
             default_profile_id,
+            artwork_asset_id,
         })
     }
     pub async fn manual_create(&self, request: &CreateRequest) -> Result<String> {

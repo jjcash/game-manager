@@ -1,12 +1,16 @@
 # Game Manager desktop
 
+M1.9 adds **Choose local artwork…**, **Replace local artwork…** and **Clear artwork** for manual canonical games. Native selection accepts one local PNG/JPEG within 8 MiB, 4096 pixels per dimension and 4,194,304 pixels total. Cancellation changes nothing; failed replacement preserves the prior assignment. Details View and the editor display only 64×36 derived images. The external source is never modified and can be removed after successful import.
+
+Application schema v5 adds asset metadata and assignments; exact v2/v3/v4/v5 backups remain supported, with only owned active copies upgraded. Database snapshots include assignments, **never artwork image files**. Keep the configured data root's `database/artwork/originals/` separately. Restore preserves existing originals and shows placeholders for missing files. Originals and uncertain interrupted files have no automatic garbage collection. Derived `database/artwork/thumbnails/` files alone are disposable. See [M1.9 verification](../../docs/development/M1.9_LOCAL_ARTWORK_VERIFICATION.md).
+
 The M0.1 Windows desktop shell uses Tauri 2, React, TypeScript, Vite, Tailwind CSS, pnpm, and Rust. See the [root README](../../README.md) for prerequisites, commands, source boundaries, and current scope, and [project status](../../docs/PROJECT_STATUS.md) for verification results.
 
 M1.1 adds **Add game** and **Manage selected game** to the existing Library. Save metadata explicitly; save membership completion or add another named manual membership. Installation records are optional user assertions, with explicit save/remove actions. All game locations are opaque metadata; editing or deleting a record never accesses game files. Each successful mutation invalidates bounded library pages/counts and clears selection/scroll position while retaining filters. Failed saves preserve editor input. A revision conflict requires closing and reopening the editor before reapplying the draft.
 
 The M1.1 application schema v2 adds ownership, edit revision, installation-state provenance and field overrides without changing summary queries. Existing databases upgrade transactionally before library access. Benchmark-purpose generator-v1 databases intentionally retain schema v1 and reject manual commands. See [M1.1 verification](../../docs/development/M1.1_VERIFICATION.md) and the [native smoke runners](../../benchmarks/README.md#m11-manual-library-verification).
 
-M1.4 adds Settings backup/restore with native file selection, strict snapshot validation, explicit replacement confirmation and restart-bound recovery. The application database path/schema and foreground queries remain unchanged; a process ownership lock prevents concurrent application instances at the same root. See [M1.4 verification](../../docs/development/M1.4_BACKUP_RESTORE_VERIFICATION.md) for current checks and limits. Backups contain database metadata only; game/mod files and artwork are excluded.
+M1.4 adds Settings backup/restore with native file selection, strict snapshot validation, explicit replacement confirmation and restart-bound recovery. The application database path/schema and foreground queries remain unchanged; a process ownership lock prevents concurrent application instances at the same root. See [M1.4 verification](../../docs/development/M1.4_BACKUP_RESTORE_VERIFICATION.md) for current checks and limits. Backups contain database metadata only; game/mod files and artwork image files are excluded, while v5 artwork assignments remain database metadata.
 
 ## Recommended IDE Setup
 

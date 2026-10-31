@@ -11,6 +11,8 @@ export interface ArtworkResult {
 type Listener = (result: ArtworkResult) => void;
 interface Job {
   id: string;
+  key: string;
+  epoch: number;
   listeners: Map<Listener, number>;
   active: boolean;
 }
@@ -73,8 +75,14 @@ export class ArtworkQueue {
   get cached() {
     return this.cache.size;
   }
+  private epoch = 0;
   clear() {
+    this.epoch++;
     this.cache.clear();
+    for (const [key, job] of this.jobs) {
+      job.listeners.clear();
+      if (!job.active) this.jobs.delete(key);
+    }
   }
   subscribe(id: string, priority: number, listener: Listener) {
     if (this.concurrency === 0) {
@@ -93,7 +101,8 @@ export class ArtworkQueue {
       return () => {};
     }
     this.cache.delete(id);
-    let job = this.jobs.get(id);
+    const key = `${this.epoch}:${id}`;
+    let job = this.jobs.get(key);
     if (!job) {
       if (this.queued >= 32) {
         const worst = [...this.jobs.values()]
@@ -104,7 +113,7 @@ export class ArtworkQueue {
               Math.min(...a.listeners.values()),
           )[0];
         if (worst && Math.min(...worst.listeners.values()) > priority) {
-          this.jobs.delete(worst.id);
+          this.jobs.delete(worst.key);
           worst.listeners.forEach((_p, fn) => fn(failed));
         } else {
           this.dropped++;
@@ -112,8 +121,8 @@ export class ArtworkQueue {
           return () => {};
         }
       }
-      job = { id, listeners: new Map(), active: false };
-      this.jobs.set(id, job);
+      job = { id, key, epoch: this.epoch, listeners: new Map(), active: false };
+      this.jobs.set(key, job);
     }
     job.listeners.set(listener, priority);
     this.maxQueued = Math.max(this.maxQueued, this.queued);
@@ -122,7 +131,7 @@ export class ArtworkQueue {
     return () => {
       subscribed.listeners.delete(listener);
       if (!subscribed.listeners.size && !subscribed.active) {
-        this.jobs.delete(id);
+        this.jobs.delete(key);
         this.cancelled++;
       }
     };
@@ -160,11 +169,13 @@ export class ArtworkQueue {
             status: result.status,
           });
           if (this.requests.length > 1024) this.requests.shift();
-          this.cache.delete(job.id);
-          this.cache.set(job.id, { result, at: performance.now() });
-          while (this.cache.size > 128)
-            this.cache.delete(this.cache.keys().next().value!);
-          this.jobs.delete(job.id);
+          if (job.epoch === this.epoch) {
+            this.cache.delete(job.id);
+            this.cache.set(job.id, { result, at: performance.now() });
+            while (this.cache.size > 128)
+              this.cache.delete(this.cache.keys().next().value!);
+          }
+          this.jobs.delete(job.key);
           this.active--;
           job.listeners.forEach((_p, listener) => listener(result));
           this.schedule();

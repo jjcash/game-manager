@@ -44,7 +44,7 @@ try {
   await ready();
   const initial = await invoke("database_get_status");
   assert.equal(initial.purpose, "application");
-  assert.equal(initial.schemaVersion, 4);
+  assert.equal(initial.schemaVersion, 5);
   assert.equal((await invoke("library_get_info")).diagnostics, false);
   assert.equal(
     await evaluate(

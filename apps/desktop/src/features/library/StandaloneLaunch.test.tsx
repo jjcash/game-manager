@@ -65,6 +65,7 @@ const details: Details = {
     },
   ],
   defaultProfileId: null,
+  artworkAssetId: null,
 };
 
 afterEach(() => {

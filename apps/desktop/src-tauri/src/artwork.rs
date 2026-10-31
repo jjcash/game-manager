@@ -42,7 +42,7 @@ impl Reply {
         }
     }
 }
-#[derive(Default, Clone, Serialize)]
+#[derive(Debug, Default, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Stats {
     pub active: usize,
@@ -459,7 +459,7 @@ fn read_owned(path: &Path, limit: u64) -> std::io::Result<Vec<u8>> {
     }
     Ok(bytes)
 }
-fn valid_thumbnail(bytes: &[u8]) -> bool {
+pub(crate) fn valid_thumbnail(bytes: &[u8]) -> bool {
     ImageReader::with_format(Cursor::new(bytes), ImageFormat::Png)
         .into_dimensions()
         .is_ok_and(|d| d == (WIDTH, HEIGHT))

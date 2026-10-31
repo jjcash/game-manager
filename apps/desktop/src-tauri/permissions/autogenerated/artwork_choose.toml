@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-artwork-choose"
+description = "Enables the artwork_choose command without any pre-configured scope."
+commands.allow = ["artwork_choose"]
+
+[[permission]]
+identifier = "deny-artwork-choose"
+description = "Denies the artwork_choose command without any pre-configured scope."
+commands.deny = ["artwork_choose"]

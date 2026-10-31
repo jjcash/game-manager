@@ -948,7 +948,7 @@ async fn exact_v2_v3_backups_upgrade_only_active_copies_and_recovery_is_repeatab
         staged.confirm(&db).await.unwrap();
         drop(db);
         let db = Database::initialize(&path).await.unwrap();
-        assert_eq!(db.status().await.unwrap().schema_version, 4);
+        assert_eq!(db.status().await.unwrap().schema_version, 5);
         let d = db.manual_details("g1").await.unwrap();
         assert_eq!(d.revision, 17);
         assert_eq!(d.entries.len(), 2);
@@ -973,7 +973,7 @@ async fn exact_v2_v3_backups_upgrade_only_active_copies_and_recovery_is_repeatab
                 .await
                 .unwrap()
                 .schema_version,
-            4
+            5
         );
         let staged = stage_restore(&db, &v3).await.unwrap();
         staged.confirm(&db).await.unwrap();
@@ -1019,7 +1019,7 @@ async fn exact_v2_v3_backups_upgrade_only_active_copies_and_recovery_is_repeatab
         mark(&directory, "attempted").unwrap();
         let db = Database::initialize(&historical).await.unwrap();
         assert_eq!(outcome(&historical).unwrap(), Some("recovered"));
-        assert_eq!(db.status().await.unwrap().schema_version, 4);
+        assert_eq!(db.status().await.unwrap().schema_version, 5);
         let d = db.manual_details("g1").await.unwrap();
         assert_eq!(d.revision, 17);
         assert_eq!(d.installations.len(), 3);

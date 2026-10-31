@@ -74,7 +74,9 @@ function Confirmation({
         This replaces your entire library with the validated backup (
         {candidate.snapshot.counts.games.toLocaleString()} games). Records are
         not merged. Installation groups are replaced too. Unsaved edits will be
-        lost. Game files are never changed.
+        lost. Game files are never changed. Artwork assignments are replaced,
+        but application-owned image files are not included or restored. Existing
+        originals are preserved; missing images show a placeholder.
       </p>
       <p className="muted mt-3">
         A verified copy of your current library will be preserved. The library
@@ -185,7 +187,10 @@ export function BackupPanel() {
         <p>
           Create a local SQLite snapshot of your library, sources, installation
           metadata and saved overrides. Artwork, game files and mod files are
-          excluded.
+          excluded. Artwork assignments are included in schema v5, but the
+          application-owned image files must be preserved separately. Restore
+          never restores or deletes those originals; missing images show a
+          placeholder.
         </p>
         <p className="muted mt-3">
           Choose a new filename. Existing files are never overwritten. Backups
@@ -287,14 +292,19 @@ export function BackupPanel() {
               Schema {candidate.snapshot.schemaVersion} ·{" "}
               {(candidate.snapshot.bytes / 1024 / 1024).toFixed(2)} MiB.
               Restoring replaces your entire current library after restart.
+              Artwork image files are excluded; missing originals show a
+              placeholder.
             </p>
-            {candidate.snapshot.schemaVersion < 4 && (
+            {candidate.snapshot.schemaVersion < 5 && (
               <p>
                 {candidate.snapshot.schemaVersion === 2
                   ? "This older backup has no installation groups or LaunchProfiles. "
-                  : "This older backup has no LaunchProfiles. "}
-                Its restored library upgrades automatically; the selected backup
-                stays unchanged.
+                  : candidate.snapshot.schemaVersion === 3
+                    ? "This older backup has no LaunchProfiles. "
+                    : ""}
+                This backup has no local artwork assignments. Its restored
+                library upgrades automatically; the selected backup stays
+                unchanged.
               </p>
             )}
             <button
