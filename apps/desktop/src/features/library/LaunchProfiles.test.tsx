@@ -52,6 +52,7 @@ const details: Details = {
     },
   ],
   defaultProfileId: null,
+  artworkAssetId: null,
 };
 afterEach(cleanup);
 it("edits the immutable binding, retains failed drafts, duplicates and confirms removal", async () => {

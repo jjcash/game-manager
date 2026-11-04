@@ -252,9 +252,17 @@ Recommendation A: proceed to M1.8 production standalone launch **only with separ
 
 No storefront adapter, schema migration, process supervision, session/playtime tracking, mod activation or M1.9 work. No commit, push, PR or merge automatically.
 
+### M1.9 — Local Artwork for the Manual Library
+
+Separately authorized on 2026-10-30 from merged M1.8 `37ecb0b`. One local PNG/JPEG assignment per manual canonical game, native choose/replace, explicit clear, durable application-owned originals and bounded Details View/editor thumbnails. Schema v5 preserves exact v2/v3/v4/v5 backup compatibility and frozen benchmark schema v1. Database snapshots contain assignments but exclude image files; restore never restores or deletes originals. Missing originals remain placeholders. Cache eviction affects verified derived thumbnails only, with no original garbage collection.
+
+The [M1.9 report](development/M1.9_LOCAL_ARTWORK_VERIFICATION.md) governs implementation, verification and limitations. Acceptance requires the complete local native launch gate against the final candidate tree. Hosted CI only compiles those native targets. No provider, storefront work, generic media framework, full-content backup, M2 or later milestone is authorized. Changes remain uncommitted for review.
+
+Current-state closeout (2026-11-04): M1.9 implementation is committed at `092867f`. Independent review completed on 2026-11-04 across all 43 changed files, with no blocking correctness or security issue found. The original candidate tree `2fa2926977ecbeb98b9d52d21be5508cc9b86c22`, file inventory and native evidence correspond to that committed implementation; earlier uncommitted-state wording describes historical verification. The artwork failure explanation and documentation closeout form a new uncommitted review candidate with separate exact-tree evidence referenced in the report. Hosted M1.9 CI and final milestone acceptance remain pending.
+
 ### Broader remaining M1 scope
 
-Extend the verified Game, LibraryEntry, Installation, grouping and LaunchProfile configuration foundation with separately authorized basic settings and artwork storage. Initial Steam import still depends on separately resolving the deferred reader gate. Preserve explicit user overrides, canonical identity and bounded queries; make future imports idempotent.
+Extend the verified Game, LibraryEntry, Installation, grouping and LaunchProfile configuration foundation with separately authorized basic settings; local artwork storage is implemented in M1.9. Initial Steam import still depends on separately resolving the deferred reader gate. Preserve explicit user overrides, canonical identity and bounded queries; make future imports idempotent.
 
 Exit: records persist through restart; repeated imports do not duplicate entries or erase local edits; browsing remains responsive. The proposed detailed DSS must become tested migrations rather than being assumed production SQL.
 

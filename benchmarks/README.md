@@ -1,5 +1,13 @@
 # Synthetic performance benchmarks
 
+## M1.9 local artwork verification
+
+Run `./benchmarks/local-artwork.ps1 -ResultsDirectory <new-absolute-disposable-root>` against the optimized ordinary application. The driver creates synthetic images and an isolated library, then prints instructions for native file selection. Cancel the first picker; choose `first.png`, `corrupt.png`, `second.png`, and `second.png` again when instructed. The workflow verifies source independence, failed replacement, clear/original preservation and restart/missing-original placeholders. Native dialogs must be operated through the actual Windows UI; no production command accepts test paths or image bytes.
+
+The existing manual, grouping, LaunchProfile, backup/restart and harmless standalone-launch runners remain regression checks. Their current-schema assertions use v5. Compare ordinary M1.8 and M1.9 artifacts using `manual-query.ps1` with `-BaselineSchema 4 -CandidateSchema 5`; never migrate or edit a frozen source fixture. Use only owned application-purpose copies for artwork activity. Record artifact hashes, actual queues/caches/workers/process memory and limitations; requestAnimationFrame intervals are not displayed FPS. See [M1.9 verification](../docs/development/M1.9_LOCAL_ARTWORK_VERIFICATION.md).
+
+Both complete native launch targets must still run locally, unelevated, against the final intended tree, with 12/12 and 9/9 outer passes and unchanged handle assertions. Preserve attributable exact-tree evidence outside the tracked tree. Hosted CI compiles these targets and cannot replace local execution. Database snapshots contain artwork assignments but exclude originals; preserve originals separately. Never run these workflows against personal game installations.
+
 M0 gate evidence: [conditional closure with documented exceptions](../docs/development/M0.8_GATE_DISPOSITION.md), accepted by the user on 2026-10-28 under ADR-007. M0 is conditionally closed with E1–E5; historical investigation completion does not establish every performance target passed.
 
 ## M1.1 manual library verification

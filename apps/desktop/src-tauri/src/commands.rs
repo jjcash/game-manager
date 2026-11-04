@@ -5,23 +5,43 @@ use serde::Serialize;
 #[tauri::command]
 pub async fn artwork_get_thumbnail(
     state: tauri::State<'_, crate::ArtworkState>,
+    database: tauri::State<'_, crate::DatabaseState>,
+    budget: tauri::State<'_, std::sync::Arc<crate::scheduling::Budget>>,
     id: String,
 ) -> Result<crate::artwork::Reply, String> {
     Ok(if let Some(service) = &state.0 {
         service.request(&id).await
     } else {
-        crate::artwork::Reply::empty("missing")
+        if let Ok(db) = database.ready()
+            && let Some(lifecycle) = &db.lifecycle
+        {
+            lifecycle
+                .artwork
+                .thumbnail(db.pool.clone(), budget.inner().clone(), id)
+                .await
+        } else {
+            crate::artwork::Reply::empty("missing")
+        }
     })
 }
 
 #[tauri::command]
-pub fn artwork_get_stats(state: tauri::State<'_, crate::ArtworkState>) -> crate::artwork::Stats {
+pub fn artwork_get_stats(
+    state: tauri::State<'_, crate::ArtworkState>,
+    database: tauri::State<'_, crate::DatabaseState>,
+) -> crate::artwork::Stats {
     #[cfg(feature = "benchmarks")]
     crate::startup_flush();
-    state
-        .0
-        .as_ref()
-        .map_or_else(Default::default, |s| s.stats())
+    state.0.as_ref().map_or_else(
+        || {
+            database
+                .ready()
+                .ok()
+                .and_then(|db| db.lifecycle.as_ref())
+                .map_or_else(Default::default, |l| l.artwork.stats())
+        },
+        |s| s.stats(),
+    )
 }
 
 /// A small, read-only IPC probe. This does not imply database readiness.

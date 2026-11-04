@@ -47,7 +47,7 @@ async function shot(suffix) {
 const checks = [];
 try {
   await ready();
-  assert.equal((await invoke("database_get_status")).schemaVersion, 4);
+  assert.equal((await invoke("database_get_status")).schemaVersion, 5);
   if (phase === "configure") {
     assert.equal((await invoke("database_get_status")).counts.games, 0);
     const id = await invoke("manual_create", {

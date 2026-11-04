@@ -5,6 +5,7 @@ mod commands;
 #[cfg(feature = "benchmarks")]
 pub mod jobs;
 pub mod launch;
+pub mod local_artwork;
 mod maintenance_commands;
 pub mod scheduling;
 pub mod storage;
@@ -320,6 +321,8 @@ pub fn run() {
         maintenance_commands::backup_cancel_restore,
         maintenance_commands::backup_confirm_restore,
         maintenance_commands::backup_restart,
+        local_artwork::artwork_choose,
+        local_artwork::artwork_clear,
         commands::artwork_get_thumbnail,
         commands::artwork_get_stats
     ]);
@@ -342,6 +345,8 @@ pub fn run() {
         maintenance_commands::backup_cancel_restore,
         maintenance_commands::backup_confirm_restore,
         maintenance_commands::backup_restart,
+        local_artwork::artwork_choose,
+        local_artwork::artwork_clear,
         commands::artwork_get_thumbnail,
         commands::artwork_get_stats,
         commands::synthetic_start,
@@ -398,6 +403,7 @@ pub fn run() {
                             && let Some(lifecycle) = &db.lifecycle
                         {
                             lifecycle.launches.drain().await;
+                            lifecycle.artwork.drain().await;
                         }
                         let maintenance = handle.state::<maintenance_commands::MaintenanceState>();
                         let _maintenance = maintenance.drain_for_shutdown().await;

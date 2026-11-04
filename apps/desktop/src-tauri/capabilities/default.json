@@ -21,6 +21,8 @@
     "allow-backup-cancel-restore",
     "allow-backup-confirm-restore",
     "allow-backup-restart",
+    "allow-artwork-choose",
+    "allow-artwork-clear",
     "allow-artwork-get-thumbnail",
     "allow-artwork-get-stats"
   ]

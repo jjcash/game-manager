@@ -9,6 +9,9 @@ import {
   type InstallationInput,
   type Metadata,
 } from "../../ipc/manual";
+import { artworkQueue } from "./artwork";
+import { Thumbnail, type ThumbnailStatus } from "./Thumbnail";
+import { changeArtwork, artworkError } from "../../ipc/artwork";
 import { pageGate } from "./requestGate";
 import { StandaloneLaunch } from "./StandaloneLaunch";
 import { LaunchProfiles } from "./LaunchProfiles";
@@ -27,6 +30,24 @@ const emptyInstallation: InstallationInput = {
   version: null,
   detectionState: "unknown",
 };
+function ArtworkPreview({ details }: { details: Details }) {
+  const [status, setStatus] = useState<ThumbnailStatus>("loading");
+  return (
+    <>
+      <Thumbnail
+        id={details.id}
+        visible
+        revision={details.revision}
+        onStatusChange={setStatus}
+      />
+      <p role="status" aria-atomic="true" className="muted">
+        {details.artworkAssetId && status === "failed"
+          ? "Assigned artwork is unavailable. Replace it with another image, or restore the preserved original to Game Manager's artwork storage from your separate backup."
+          : ""}
+      </p>
+    </>
+  );
+}
 export function ManualEditor({
   gameId,
   close,
@@ -39,6 +60,9 @@ export function ManualEditor({
   const dialog = useRef<HTMLDialogElement>(null);
   const pending = useRef<AbortController | null>(null);
   const [details, setDetails] = useState<Details | null>(null);
+  // Each bounded refresh owns a fresh preview, even at the same game revision.
+  const [previewVersion, setPreviewVersion] = useState(0);
+  const [refreshingArtwork, setRefreshingArtwork] = useState(false);
   const [metadata, setMetadata] = useState<Metadata>(emptyMetadata);
   const [source, setSource] = useState("Manual");
   const [installation, setInstallation] =
@@ -77,6 +101,7 @@ export function ManualEditor({
       .then((v) => {
         if (controller.signal.aborted) return;
         setDetails(v);
+        setPreviewVersion((version) => version + 1);
         setMetadata(v.metadata);
         setEntryId(v.entries.find((e) => e.sourceType === "manual")?.id ?? "");
         setLoading(false);
@@ -134,6 +159,7 @@ export function ManualEditor({
         );
         if (controller.signal.aborted) return false;
         setDetails(next);
+        setPreviewVersion((version) => version + 1);
         if (!next.entries.some((e) => e.id === entryId))
           setEntryId(
             next.entries.find((e) => e.sourceType === "manual")?.id ?? "",
@@ -154,6 +180,70 @@ export function ManualEditor({
     } finally {
       if (pending.current === controller) pending.current = null;
       if (!controller.signal.aborted) setBusy(false);
+    }
+  }
+  async function runArtwork(clear: boolean) {
+    if (!details || busy || pending.current) return;
+    const controller = new AbortController();
+    pending.current = controller;
+    setBusy(true);
+    setError("");
+    let modified = false;
+    try {
+      modified = await changeArtwork(details, clear);
+      if (controller.signal.aborted || !modified) return;
+      setRefreshingArtwork(true);
+      artworkQueue.clear();
+      changed();
+      const next = await pageGate.run(controller.signal, () =>
+        getManual(details.id),
+      );
+      if (!controller.signal.aborted) {
+        setDetails(next);
+        setPreviewVersion((version) => version + 1);
+      }
+    } catch (e) {
+      if (!controller.signal.aborted) {
+        if (modified) {
+          setDetails(null);
+          setError(
+            "Artwork changed, but details could not refresh. Close and reopen the editor.",
+          );
+          return;
+        }
+        setError(artworkError(e));
+        // Retain drafts; only refresh the revision/assignment on a stale request.
+        if (
+          typeof e === "object" &&
+          e !== null &&
+          "code" in e &&
+          e.code === "stale"
+        ) {
+          setRefreshingArtwork(true);
+          artworkQueue.clear();
+          changed();
+          try {
+            const next = await pageGate.run(controller.signal, () =>
+              getManual(details.id),
+            );
+            if (!controller.signal.aborted) {
+              setDetails(next);
+              setPreviewVersion((version) => version + 1);
+            }
+          } catch {
+            if (!controller.signal.aborted) {
+              setDetails(null);
+              setError("Game unavailable. Close and reopen the editor.");
+            }
+          }
+        }
+      }
+    } finally {
+      if (pending.current === controller) pending.current = null;
+      if (!controller.signal.aborted) {
+        setBusy(false);
+        setRefreshingArtwork(false);
+      }
     }
   }
   const input = (
@@ -329,6 +419,39 @@ export function ManualEditor({
             {gameId ? "Save metadata" : "Create game"}
           </button>
         </form>
+        {details?.origin === "manual" && details.id === gameId && (
+          <section aria-label="Local artwork" className="mt-3">
+            <h3>Local artwork</h3>
+            {!refreshingArtwork && (
+              <ArtworkPreview
+                key={`${gameId}:${previewVersion}`}
+                details={details}
+              />
+            )}
+            <button type="button" onClick={() => void runArtwork(false)}>
+              {details.artworkAssetId
+                ? "Replace local artwork…"
+                : "Choose local artwork…"}
+            </button>
+            <button
+              type="button"
+              disabled={!details.artworkAssetId}
+              onClick={() => void runArtwork(true)}
+            >
+              Clear artwork
+            </button>
+            <p className="muted">
+              One PNG or JPEG, up to 8 MiB, 4096 pixels per dimension and
+              4,194,304 pixels total. Game Manager keeps its own original copy.
+              Replacing or clearing preserves previous originals.
+            </p>
+            <p className="muted">
+              Database backups include artwork assignments but exclude image
+              files. Preserve the application-owned artwork directory
+              separately. Missing images show a placeholder.
+            </p>
+          </section>
+        )}
         {details && (
           <>
             <h3>Memberships</h3>

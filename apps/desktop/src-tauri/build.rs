@@ -22,6 +22,8 @@ fn main() {
             "backup_cancel_restore",
             "backup_confirm_restore",
             "backup_restart",
+            "artwork_choose",
+            "artwork_clear",
             "artwork_get_thumbnail",
             "artwork_get_stats",
             "synthetic_start",

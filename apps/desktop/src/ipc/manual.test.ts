@@ -98,6 +98,7 @@ it("validates bounded group associations and sends stable IDs with the game revi
     ],
     profiles: [],
     defaultProfileId: null,
+    artworkAssetId: null,
     groups: [
       { id: "g", displayName: "Same" },
       { id: "other", displayName: "Same" },

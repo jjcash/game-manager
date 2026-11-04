@@ -44,6 +44,7 @@ const details: Details = {
   installations: [],
   profiles: [],
   defaultProfileId: null,
+  artworkAssetId: null,
   groups: [],
 };
 beforeEach(() => {

@@ -70,6 +70,7 @@ pub(crate) struct Lifecycle {
     owner: File,
     pub stopping: AtomicBool,
     pub(crate) launches: crate::launch::Admission,
+    pub(crate) artwork: std::sync::Arc<crate::local_artwork::Service>,
 }
 impl Lifecycle {
     pub fn acquire(path: &Path) -> Result<Self> {
@@ -91,6 +92,7 @@ impl Lifecycle {
             owner,
             stopping: AtomicBool::new(false),
             launches: Default::default(),
+            artwork: crate::local_artwork::Service::new(parent.join("artwork")),
         })
     }
     pub fn release(&self) {
@@ -155,7 +157,7 @@ async fn expected_schema(version: usize) -> Result<&'static Schema> {
     let schemas = SCHEMAS
         .get_or_try_init(|| async {
             let mut result = Vec::new();
-            for count in [2, 3, 4] {
+            for count in [2, 3, 4, 5] {
                 let mut c = SqliteConnection::connect("sqlite::memory:").await?;
                 let migrator = sqlx::migrate::Migrator {
                     migrations: std::borrow::Cow::Borrowed(&MIGRATOR.migrations[..count]),
@@ -178,7 +180,7 @@ async fn expected_schema(version: usize) -> Result<&'static Schema> {
         .await?;
     Ok(&schemas[version - 2])
 }
-/// Standalone exact application schemas v2, v3 and v4 are supported. Validation is
+/// Standalone exact application schemas v2, v3, v4 and v5 are supported. Validation is
 /// read-only; only an installed active copy is upgraded by ordinary initialization.
 pub async fn validate_snapshot(path: &Path) -> Result<Snapshot> {
     if tokio::fs::metadata(path).await.map_err(io)?.len() > MAX_SNAPSHOT_BYTES {
@@ -233,11 +235,11 @@ async fn validate_connection(c: &mut SqliteConnection, path: &Path) -> Result<Sn
         ));
     }
     let history: Vec<(i64, bool, Vec<u8>)> =
-        sqlx::query_as("SELECT version,success=1,substr(checksum,1,64) FROM _sqlx_migrations ORDER BY version LIMIT 5")
+        sqlx::query_as("SELECT version,success=1,substr(checksum,1,64) FROM _sqlx_migrations ORDER BY version LIMIT 6")
             .fetch_all(&mut *c)
             .await?;
     let version = history.len();
-    if !matches!(version, 2..=4)
+    if !matches!(version, 2..=5)
         || history
             .iter()
             .zip(MIGRATOR.iter())
@@ -245,7 +247,7 @@ async fn validate_connection(c: &mut SqliteConnection, path: &Path) -> Result<Sn
     {
         return Err(error(
             ErrorCode::Migration,
-            "Backup schema or migration history is incompatible with this build. Supported application schemas are v2, v3 and v4; keep the backup for a compatible version.",
+            "Backup schema or migration history is incompatible with this build. Supported application schemas are v2, v3, v4 and v5; keep the backup for a compatible version.",
         ));
     }
     if schema(c).await? != *expected_schema(version).await? {
@@ -287,6 +289,15 @@ async fn validate_connection(c: &mut SqliteConnection, path: &Path) -> Result<Sn
                 "LaunchProfile configurations or defaults are invalid. File preserved.",
             )
         })?;
+    }
+    if version >= 5 {
+        let invalid: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM game_artwork a JOIN games g ON g.id=a.game_id WHERE g.origin<>'manual')").fetch_one(&mut *c).await?;
+        if invalid {
+            return Err(error(
+                ErrorCode::InvalidDatabase,
+                "Artwork assignment requires a manual game.",
+            ));
+        }
     }
     let counts = sqlx::query_as("SELECT (SELECT count(*) FROM games) AS games,(SELECT count(*) FROM library_sources) AS library_sources,(SELECT count(*) FROM library_entries) AS library_entries,(SELECT count(*) FROM game_installations) AS installations").fetch_one(&mut *c).await?;
     Ok(Snapshot {
@@ -666,6 +677,7 @@ impl PreparedRestore {
         let lifecycle = db.lifecycle.as_ref().expect("application lifecycle");
         lifecycle.stopping.store(true, Ordering::SeqCst);
         lifecycle.launches.drain().await;
+        lifecycle.artwork.drain().await;
         db.pool.close().await;
         // Retain the process lock even though SQLx is closed. No other application
         // process can open this root until this process exits.

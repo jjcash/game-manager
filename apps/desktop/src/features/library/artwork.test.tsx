@@ -126,6 +126,38 @@ it("does not notify released active subscribers", async () => {
   expect(listener).not.toHaveBeenCalled();
   expect(queue.active).toBe(0);
 });
+it("refresh generations discard old completions without releasing native capacity early", async () => {
+  vi.useFakeTimers();
+  const old = deferred(),
+    next = deferred();
+  const load = vi
+    .fn()
+    .mockReturnValueOnce(old.promise)
+    .mockReturnValueOnce(next.promise);
+  const queue = new ArtworkQueue(load);
+  queue.configure(1);
+  const stale = vi.fn(),
+    current = vi.fn();
+  queue.subscribe("same", 0, stale);
+  await vi.advanceTimersByTimeAsync(16);
+  queue.clear();
+  queue.subscribe("same", 0, current);
+  await vi.advanceTimersByTimeAsync(16);
+  expect(load).toHaveBeenCalledTimes(1);
+  expect(queue.active).toBe(1);
+  old.resolve(ready);
+  await vi.advanceTimersByTimeAsync(32);
+  expect(stale).not.toHaveBeenCalled();
+  expect(current).not.toHaveBeenCalled();
+  expect(queue.cached).toBe(0);
+  expect(load).toHaveBeenCalledTimes(2);
+  next.resolve({ ...ready, dataUrl: null, status: "missing" });
+  await vi.advanceTimersByTimeAsync(32);
+  expect(current).toHaveBeenCalledWith(
+    expect.objectContaining({ status: "missing" }),
+  );
+  expect(queue.maxActive).toBe(1);
+});
 it("supports zero or one artwork worker without an unbounded queue", async () => {
   vi.useFakeTimers();
   const pending = deferred();
@@ -147,4 +179,47 @@ it("supports zero or one artwork worker without an unbounded queue", async () =>
   pending.resolve(ready);
   await vi.advanceTimersByTimeAsync(50);
   expect(queue.maxActive).toBe(1);
+});
+it("reports queue backpressure as deferred rather than an artwork failure", () => {
+  const queue = new ArtworkQueue();
+  const evicted = vi.fn();
+  queue.subscribe("near", 1, evicted);
+  for (let i = 0; i < 31; i++) queue.subscribe(`visible-${i}`, 0, vi.fn());
+  queue.subscribe("priority", 0, vi.fn());
+  expect(evicted).toHaveBeenCalledWith(
+    expect.objectContaining({ status: "deferred" }),
+  );
+  const dropped = vi.fn();
+  queue.subscribe("overflow", 0, dropped);
+  expect(dropped).toHaveBeenCalledWith(
+    expect.objectContaining({ status: "deferred" }),
+  );
+  queue.clear();
+});
+it("reports ready only after image load and suppresses obsolete status on revision changes", () => {
+  const listeners: ((result: ArtworkResult) => void)[] = [];
+  vi.spyOn(artworkQueue, "subscribe").mockImplementation(
+    (_id, _priority, listener) => {
+      listeners.push(listener);
+      return vi.fn();
+    },
+  );
+  const status = vi.fn();
+  const view = render(<Thumbnail id="same" visible onStatusChange={status} />);
+  expect(status).toHaveBeenLastCalledWith("loading");
+  act(() => listeners[0](ready));
+  expect(status).toHaveBeenLastCalledWith("loading");
+  fireEvent.load(view.container.querySelector("img")!);
+  expect(status).toHaveBeenLastCalledWith("ready");
+  view.rerender(
+    <Thumbnail id="same" visible revision={1} onStatusChange={status} />,
+  );
+  expect(status).toHaveBeenLastCalledWith("loading");
+  act(() => listeners[0]({ ...ready, status: "failed", dataUrl: null }));
+  expect(status).toHaveBeenLastCalledWith("loading");
+  act(() => listeners[1](ready));
+  fireEvent.error(view.container.querySelector("img")!);
+  expect(status).toHaveBeenLastCalledWith("failed");
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.queryByRole("status")).toBeNull();
 });

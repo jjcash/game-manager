@@ -405,6 +405,7 @@ impl Database {
                 .stopping
                 .store(true, std::sync::atomic::Ordering::SeqCst);
             lifecycle.launches.drain().await;
+            lifecycle.artwork.drain().await;
         }
         self.pool.close().await;
         if let Some(lifecycle) = &self.lifecycle {

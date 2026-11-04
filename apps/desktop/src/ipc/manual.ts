@@ -49,6 +49,7 @@ export interface Details {
   groups: InstallationGroup[];
   profiles: Profile[];
   defaultProfileId: string | null;
+  artworkAssetId: string | null;
 }
 export type Action =
   | { kind: "metadata"; metadata: Metadata }
@@ -142,6 +143,9 @@ export async function getManual(gameId: string) {
     value.id !== gameId ||
     !Number.isSafeInteger(value.revision) ||
     value.revision < 0 ||
+    (value.artworkAssetId !== null &&
+      (typeof value.artworkAssetId !== "string" ||
+        !/^[0-9a-f]{32}$/.test(value.artworkAssetId))) ||
     !value.metadata ||
     typeof value.metadata.title !== "string" ||
     !["manual", "legacy"].includes(value.origin) ||
