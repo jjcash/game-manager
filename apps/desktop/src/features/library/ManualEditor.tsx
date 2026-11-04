@@ -10,7 +10,7 @@ import {
   type Metadata,
 } from "../../ipc/manual";
 import { artworkQueue } from "./artwork";
-import { Thumbnail } from "./Thumbnail";
+import { Thumbnail, type ThumbnailStatus } from "./Thumbnail";
 import { changeArtwork, artworkError } from "../../ipc/artwork";
 import { pageGate } from "./requestGate";
 import { StandaloneLaunch } from "./StandaloneLaunch";
@@ -30,6 +30,24 @@ const emptyInstallation: InstallationInput = {
   version: null,
   detectionState: "unknown",
 };
+function ArtworkPreview({ details }: { details: Details }) {
+  const [status, setStatus] = useState<ThumbnailStatus>("loading");
+  return (
+    <>
+      <Thumbnail
+        id={details.id}
+        visible
+        revision={details.revision}
+        onStatusChange={setStatus}
+      />
+      <p role="status" aria-atomic="true" className="muted">
+        {details.artworkAssetId && status === "failed"
+          ? "Assigned artwork is unavailable. Replace it with another image, or restore the preserved original to Game Manager's artwork storage from your separate backup."
+          : ""}
+      </p>
+    </>
+  );
+}
 export function ManualEditor({
   gameId,
   close,
@@ -42,6 +60,9 @@ export function ManualEditor({
   const dialog = useRef<HTMLDialogElement>(null);
   const pending = useRef<AbortController | null>(null);
   const [details, setDetails] = useState<Details | null>(null);
+  // Each bounded refresh owns a fresh preview, even at the same game revision.
+  const [previewVersion, setPreviewVersion] = useState(0);
+  const [refreshingArtwork, setRefreshingArtwork] = useState(false);
   const [metadata, setMetadata] = useState<Metadata>(emptyMetadata);
   const [source, setSource] = useState("Manual");
   const [installation, setInstallation] =
@@ -80,6 +101,7 @@ export function ManualEditor({
       .then((v) => {
         if (controller.signal.aborted) return;
         setDetails(v);
+        setPreviewVersion((version) => version + 1);
         setMetadata(v.metadata);
         setEntryId(v.entries.find((e) => e.sourceType === "manual")?.id ?? "");
         setLoading(false);
@@ -137,6 +159,7 @@ export function ManualEditor({
         );
         if (controller.signal.aborted) return false;
         setDetails(next);
+        setPreviewVersion((version) => version + 1);
         if (!next.entries.some((e) => e.id === entryId))
           setEntryId(
             next.entries.find((e) => e.sourceType === "manual")?.id ?? "",
@@ -169,12 +192,16 @@ export function ManualEditor({
     try {
       modified = await changeArtwork(details, clear);
       if (controller.signal.aborted || !modified) return;
+      setRefreshingArtwork(true);
       artworkQueue.clear();
       changed();
       const next = await pageGate.run(controller.signal, () =>
         getManual(details.id),
       );
-      if (!controller.signal.aborted) setDetails(next);
+      if (!controller.signal.aborted) {
+        setDetails(next);
+        setPreviewVersion((version) => version + 1);
+      }
     } catch (e) {
       if (!controller.signal.aborted) {
         if (modified) {
@@ -192,13 +219,17 @@ export function ManualEditor({
           "code" in e &&
           e.code === "stale"
         ) {
+          setRefreshingArtwork(true);
           artworkQueue.clear();
           changed();
           try {
             const next = await pageGate.run(controller.signal, () =>
               getManual(details.id),
             );
-            if (!controller.signal.aborted) setDetails(next);
+            if (!controller.signal.aborted) {
+              setDetails(next);
+              setPreviewVersion((version) => version + 1);
+            }
           } catch {
             if (!controller.signal.aborted) {
               setDetails(null);
@@ -209,7 +240,10 @@ export function ManualEditor({
       }
     } finally {
       if (pending.current === controller) pending.current = null;
-      if (!controller.signal.aborted) setBusy(false);
+      if (!controller.signal.aborted) {
+        setBusy(false);
+        setRefreshingArtwork(false);
+      }
     }
   }
   const input = (
@@ -385,10 +419,15 @@ export function ManualEditor({
             {gameId ? "Save metadata" : "Create game"}
           </button>
         </form>
-        {details?.origin === "manual" && (
+        {details?.origin === "manual" && details.id === gameId && (
           <section aria-label="Local artwork" className="mt-3">
             <h3>Local artwork</h3>
-            <Thumbnail id={details.id} visible revision={details.revision} />
+            {!refreshingArtwork && (
+              <ArtworkPreview
+                key={`${gameId}:${previewVersion}`}
+                details={details}
+              />
+            )}
             <button type="button" onClick={() => void runArtwork(false)}>
               {details.artworkAssetId
                 ? "Replace local artwork…"

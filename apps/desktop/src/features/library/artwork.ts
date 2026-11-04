@@ -114,10 +114,12 @@ export class ArtworkQueue {
           )[0];
         if (worst && Math.min(...worst.listeners.values()) > priority) {
           this.jobs.delete(worst.key);
-          worst.listeners.forEach((_p, fn) => fn(failed));
+          worst.listeners.forEach((_p, fn) =>
+            fn({ ...failed, status: "deferred" }),
+          );
         } else {
           this.dropped++;
-          listener(failed);
+          listener({ ...failed, status: "deferred" });
           return () => {};
         }
       }

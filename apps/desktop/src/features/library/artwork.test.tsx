@@ -180,3 +180,46 @@ it("supports zero or one artwork worker without an unbounded queue", async () =>
   await vi.advanceTimersByTimeAsync(50);
   expect(queue.maxActive).toBe(1);
 });
+it("reports queue backpressure as deferred rather than an artwork failure", () => {
+  const queue = new ArtworkQueue();
+  const evicted = vi.fn();
+  queue.subscribe("near", 1, evicted);
+  for (let i = 0; i < 31; i++) queue.subscribe(`visible-${i}`, 0, vi.fn());
+  queue.subscribe("priority", 0, vi.fn());
+  expect(evicted).toHaveBeenCalledWith(
+    expect.objectContaining({ status: "deferred" }),
+  );
+  const dropped = vi.fn();
+  queue.subscribe("overflow", 0, dropped);
+  expect(dropped).toHaveBeenCalledWith(
+    expect.objectContaining({ status: "deferred" }),
+  );
+  queue.clear();
+});
+it("reports ready only after image load and suppresses obsolete status on revision changes", () => {
+  const listeners: ((result: ArtworkResult) => void)[] = [];
+  vi.spyOn(artworkQueue, "subscribe").mockImplementation(
+    (_id, _priority, listener) => {
+      listeners.push(listener);
+      return vi.fn();
+    },
+  );
+  const status = vi.fn();
+  const view = render(<Thumbnail id="same" visible onStatusChange={status} />);
+  expect(status).toHaveBeenLastCalledWith("loading");
+  act(() => listeners[0](ready));
+  expect(status).toHaveBeenLastCalledWith("loading");
+  fireEvent.load(view.container.querySelector("img")!);
+  expect(status).toHaveBeenLastCalledWith("ready");
+  view.rerender(
+    <Thumbnail id="same" visible revision={1} onStatusChange={status} />,
+  );
+  expect(status).toHaveBeenLastCalledWith("loading");
+  act(() => listeners[0]({ ...ready, status: "failed", dataUrl: null }));
+  expect(status).toHaveBeenLastCalledWith("loading");
+  act(() => listeners[1](ready));
+  fireEvent.error(view.container.querySelector("img")!);
+  expect(status).toHaveBeenLastCalledWith("failed");
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.queryByRole("status")).toBeNull();
+});

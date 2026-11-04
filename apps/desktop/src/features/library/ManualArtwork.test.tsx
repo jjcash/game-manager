@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ManualEditor } from "./ManualEditor";
 import { getManual, type Details } from "../../ipc/manual";
 import { changeArtwork } from "../../ipc/artwork";
-import { artworkQueue } from "./artwork";
+import { artworkQueue, type ArtworkResult } from "./artwork";
 vi.mock("../../ipc/manual", async (original) => ({
   ...(await original<typeof import("../../ipc/manual")>()),
   getManual: vi.fn(),
@@ -133,4 +135,191 @@ it("hides stale assignment controls and preview if a successful save cannot refr
   expect(
     screen.queryByRole("button", { name: "Replace local artwork…" }),
   ).toBeNull();
+});
+
+const ready: ArtworkResult = {
+  status: "ready",
+  dataUrl: "data:image/png;base64,AAAA",
+  cache: "miss",
+  workMs: 1,
+  decodeMs: 1,
+};
+const failed = { ...ready, status: "unavailable", dataUrl: null };
+const unavailable = "Assigned artwork is unavailable.";
+const artworkStatus = () =>
+  within(screen.getByRole("region", { name: "Local artwork" })).getByRole(
+    "status",
+  );
+function observeArtwork() {
+  const listeners: ((result: ArtworkResult) => void)[] = [];
+  vi.spyOn(artworkQueue, "subscribe").mockImplementation(
+    (_id, _priority, listener) => {
+      listeners.push(listener);
+      return vi.fn();
+    },
+  );
+  return listeners;
+}
+it("announces a confirmed assigned-artwork failure once, with safe recovery wording", async () => {
+  const listeners = observeArtwork();
+  vi.mocked(getManual).mockResolvedValue({
+    ...details,
+    artworkAssetId: "asset",
+  });
+  render(<ManualEditor gameId="canonical" changed={vi.fn()} close={vi.fn()} />);
+  await screen.findByRole("region", { name: "Local artwork" });
+  const status = artworkStatus();
+  expect(status.textContent).toBe("");
+  const mutations = vi.fn();
+  const observer = new MutationObserver(mutations);
+  observer.observe(status, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
+  act(() => listeners[0](failed));
+  await screen.findByText(/Assigned artwork is unavailable/);
+  expect(status.textContent).toBe(
+    "Assigned artwork is unavailable. Replace it with another image, or restore the preserved original to Game Manager's artwork storage from your separate backup.",
+  );
+  expect(status.getAttribute("aria-atomic")).toBe("true");
+  await waitFor(() => expect(mutations).toHaveBeenCalledTimes(1));
+  act(() => listeners[0]({ ...failed }));
+  await Promise.resolve();
+  expect(mutations).toHaveBeenCalledTimes(1);
+  observer.disconnect();
+});
+it("keeps unassigned, pending, deferred and successfully decoded artwork silent", async () => {
+  const listeners = observeArtwork();
+  const editor = render(
+    <ManualEditor gameId="canonical" changed={vi.fn()} close={vi.fn()} />,
+  );
+  await screen.findByRole("region", { name: "Local artwork" });
+  act(() => listeners[0](failed));
+  expect(screen.queryByText(new RegExp(unavailable))).toBeNull();
+  editor.unmount();
+  vi.mocked(getManual).mockResolvedValue({
+    ...details,
+    artworkAssetId: "asset",
+  });
+  const assigned = render(
+    <ManualEditor gameId="canonical" changed={vi.fn()} close={vi.fn()} />,
+  );
+  await screen.findByRole("region", { name: "Local artwork" });
+  for (const status of ["missing", "busy", "stopping", "deferred"]) {
+    act(() => listeners[1]({ ...failed, status }));
+    expect(artworkStatus().textContent).toBe("");
+  }
+  act(() => listeners[1](ready));
+  expect(artworkStatus().textContent).toBe("");
+  fireEvent.load(assigned.container.querySelector("img")!);
+  expect(artworkStatus().textContent).toBe("");
+  expect(
+    assigned.container.querySelector(".thumbnail")?.getAttribute("aria-hidden"),
+  ).toBe("true");
+  expect(screen.queryByRole("img")).toBeNull();
+});
+it("explains browser image errors and recovers on replace, ignoring released failures", async () => {
+  const listeners = observeArtwork();
+  vi.mocked(getManual).mockResolvedValue({ ...details, artworkAssetId: "old" });
+  vi.mocked(changeArtwork).mockResolvedValue(true);
+  const editor = render(
+    <ManualEditor gameId="canonical" changed={vi.fn()} close={vi.fn()} />,
+  );
+  const replace = await screen.findByRole("button", {
+    name: "Replace local artwork…",
+  });
+  act(() => listeners[0](ready));
+  fireEvent.error(editor.container.querySelector("img")!);
+  expect(artworkStatus().textContent).toContain(unavailable);
+  vi.mocked(getManual).mockResolvedValueOnce({
+    ...details,
+    revision: 5,
+    artworkAssetId: "new",
+  });
+  fireEvent.click(replace);
+  await waitFor(() => expect(listeners).toHaveLength(2));
+  expect(artworkStatus().textContent).toBe("");
+  act(() => listeners[0](failed));
+  expect(artworkStatus().textContent).toBe("");
+  act(() => listeners[1](ready));
+  fireEvent.load(editor.container.querySelector("img")!);
+  expect(artworkStatus().textContent).toBe("");
+});
+it("clears stale failures after clear and same-revision stale-request refresh", async () => {
+  const listeners = observeArtwork();
+  const assigned = { ...details, artworkAssetId: "asset" };
+  vi.mocked(getManual).mockResolvedValue(assigned);
+  vi.mocked(changeArtwork)
+    .mockRejectedValueOnce({ code: "stale" })
+    .mockResolvedValueOnce(true);
+  render(<ManualEditor gameId="canonical" changed={vi.fn()} close={vi.fn()} />);
+  const replace = await screen.findByRole("button", {
+    name: "Replace local artwork…",
+  });
+  act(() => listeners[0](failed));
+  fireEvent.click(replace);
+  await waitFor(() => expect(listeners).toHaveLength(2));
+  expect(artworkStatus().textContent).toBe("");
+  act(() => listeners[0](failed));
+  expect(artworkStatus().textContent).toBe("");
+  act(() => listeners[1](failed));
+  expect(artworkStatus().textContent).toContain(unavailable);
+  vi.mocked(getManual).mockResolvedValueOnce({ ...details, revision: 5 });
+  fireEvent.click(screen.getByRole("button", { name: "Clear artwork" }));
+  await screen.findByRole("button", { name: "Choose local artwork…" });
+  act(() => listeners[1](failed));
+  act(() => listeners[2]({ ...failed, status: "missing" }));
+  expect(artworkStatus().textContent).toBe("");
+});
+it("suppresses a selected game's failure immediately while another game's details load", async () => {
+  const listeners = observeArtwork();
+  vi.mocked(getManual).mockResolvedValue({ ...details, artworkAssetId: "old" });
+  const editor = render(
+    <ManualEditor gameId="canonical" changed={vi.fn()} close={vi.fn()} />,
+  );
+  await screen.findByRole("region", { name: "Local artwork" });
+  act(() => listeners[0](failed));
+  let resolve!: (value: Details) => void;
+  vi.mocked(getManual).mockReturnValueOnce(
+    new Promise((r) => {
+      resolve = r;
+    }),
+  );
+  editor.rerender(
+    <ManualEditor gameId="other" changed={vi.fn()} close={vi.fn()} />,
+  );
+  expect(screen.queryByText(new RegExp(unavailable))).toBeNull();
+  act(() => listeners[0](failed));
+  await act(async () =>
+    resolve({ ...details, id: "other", artworkAssetId: "new" }),
+  );
+  expect(artworkStatus().textContent).toBe("");
+  act(() => listeners[0](failed));
+  expect(artworkStatus().textContent).toBe("");
+});
+it("retires a confirmed mutation's failure while bounded assignment details refresh", async () => {
+  const listeners = observeArtwork();
+  vi.mocked(getManual).mockResolvedValue({ ...details, artworkAssetId: "old" });
+  vi.mocked(changeArtwork).mockResolvedValue(true);
+  render(<ManualEditor gameId="canonical" changed={vi.fn()} close={vi.fn()} />);
+  const replace = await screen.findByRole("button", {
+    name: "Replace local artwork…",
+  });
+  act(() => listeners[0](failed));
+  let resolve!: (value: Details) => void;
+  vi.mocked(getManual).mockReturnValueOnce(
+    new Promise((r) => {
+      resolve = r;
+    }),
+  );
+  fireEvent.click(replace);
+  await waitFor(() => expect(getManual).toHaveBeenCalledTimes(2));
+  expect(screen.queryByText(new RegExp(unavailable))).toBeNull();
+  act(() => listeners[0](failed));
+  expect(screen.queryByText(new RegExp(unavailable))).toBeNull();
+  await act(async () =>
+    resolve({ ...details, revision: 5, artworkAssetId: "new" }),
+  );
+  expect(artworkStatus().textContent).toBe("");
 });
