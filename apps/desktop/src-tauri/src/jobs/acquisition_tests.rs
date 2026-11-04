@@ -35,17 +35,143 @@ fn request() -> Request {
 }
 
 async fn wait(s: &Scheduler, id: u64, predicate: impl Fn(&Snapshot) -> bool) -> Snapshot {
-    tokio::time::timeout(Duration::from_secs(5), async {
+    wait_observed(s, id, predicate, None).await
+}
+
+async fn wait_observed(
+    s: &Scheduler,
+    id: u64,
+    predicate: impl Fn(&Snapshot) -> bool,
+    mut diagnostics: Option<&mut AcquisitionDiagnostics<'_>>,
+) -> Snapshot {
+    if let Some(diagnostics) = diagnostics.as_deref_mut() {
+        diagnostics.wait_started = Some(Instant::now());
+    }
+    let result = tokio::time::timeout(Duration::from_secs(5), async {
         loop {
-            let snapshot = s.report().jobs.into_iter().find(|j| j.id == id).unwrap();
+            let report = s.report();
+            let snapshot = report.jobs.into_iter().find(|j| j.id == id).unwrap();
+            if let Some(diagnostics) = diagnostics.as_deref_mut() {
+                let now = Instant::now();
+                if let Some(previous) = diagnostics.last_poll.replace(now) {
+                    diagnostics.max_poll_gap = diagnostics.max_poll_gap.max(now - previous);
+                }
+                diagnostics.observed_active = Some(report.active);
+                diagnostics.scheduling = Some(report.scheduling);
+            }
             if predicate(&snapshot) {
+                if let Some(diagnostics) = diagnostics.as_deref_mut() {
+                    // One terminal copy; nonterminal observations move the existing
+                    // report snapshot, with no additional per-poll allocation.
+                    diagnostics.last_snapshot = Some(snapshot.clone());
+                }
                 return snapshot;
+            }
+            if let Some(diagnostics) = diagnostics.as_deref_mut() {
+                diagnostics.last_snapshot = Some(snapshot);
             }
             tokio::time::sleep(Duration::from_millis(2)).await;
         }
     })
-    .await
-    .expect("bounded acquisition control stalled")
+    .await;
+    if let Some(diagnostics) = diagnostics {
+        diagnostics.last_wait = diagnostics.wait_started.take().unwrap().elapsed();
+        diagnostics.max_wait = diagnostics.max_wait.max(diagnostics.last_wait);
+        if let Some(previous) = diagnostics.last_poll {
+            // Include a delayed timeout delivery after the final completed poll.
+            diagnostics.max_poll_gap = diagnostics.max_poll_gap.max(previous.elapsed());
+        }
+    }
+    result.expect("bounded acquisition control stalled")
+}
+
+// Test-local, constant-count observations. Formatting and additional pool samples
+// occur only on failure; the polling loop reuses its existing scheduler report.
+struct AcquisitionDiagnostics<'a> {
+    scheduler: &'a Scheduler,
+    db: &'a Database,
+    iteration: usize,
+    id: Option<u64>,
+    phase: &'static str,
+    phase_started: Instant,
+    wait_started: Option<Instant>,
+    last_wait: Duration,
+    max_wait: Duration,
+    last_poll: Option<Instant>,
+    max_poll_gap: Duration,
+    last_snapshot: Option<Snapshot>,
+    observed_active: Option<usize>,
+    scheduling: Option<crate::scheduling::Stats>,
+}
+
+impl<'a> AcquisitionDiagnostics<'a> {
+    fn new(scheduler: &'a Scheduler, db: &'a Database) -> Self {
+        Self {
+            scheduler,
+            db,
+            iteration: 0,
+            id: None,
+            phase: "readers_start",
+            phase_started: Instant::now(),
+            wait_started: None,
+            last_wait: Duration::ZERO,
+            max_wait: Duration::ZERO,
+            last_poll: None,
+            max_poll_gap: Duration::ZERO,
+            last_snapshot: None,
+            observed_active: None,
+            scheduling: None,
+        }
+    }
+
+    fn phase(&mut self, phase: &'static str) {
+        self.phase = phase;
+        self.phase_started = Instant::now();
+    }
+}
+
+impl Drop for AcquisitionDiagnostics<'_> {
+    fn drop(&mut self) {
+        if !std::thread::panicking() {
+            return;
+        }
+        let size = self.db.pool.size();
+        let idle = self.db.pool.num_idle();
+        let wait = self.wait_started.map_or(self.last_wait, |at| at.elapsed());
+        let poll_age = self.last_poll.map(|at| at.elapsed());
+        let gap = if self.phase == "terminal_wait" {
+            self.max_poll_gap.max(poll_age.unwrap_or_default())
+        } else {
+            self.max_poll_gap
+        };
+        // Pool samples are non-atomic. Non-idle includes opening/returning work,
+        // not necessarily acquired connections or executing queries. Poll gaps
+        // include report work, the existing sleep and task/timer delivery.
+        eprintln!(
+            "M0.8 acquisition failure iteration={}/16 job={:?} phase={} phase_ms={:.3} terminal_wait_ms={:.3} last_snapshot(state,processed,committed,error)={:?} last_poll_age_ms={:?} max_poll_gap_ms={:.3} observed_active={:?} active_now={} slot_available_now={} observed_workers_active={:?} observed_workers_max={:?} observed_foreground_active={:?} observed_backoffs={:?} pool_size={} pool_idle={} pool_non_idle_estimate={} pool_limit={}",
+            self.iteration,
+            self.id,
+            self.phase,
+            self.phase_started.elapsed().as_secs_f64() * 1000.0,
+            wait.as_secs_f64() * 1000.0,
+            self.last_snapshot
+                .as_ref()
+                .map(|j| (j.state, j.processed, j.committed, &j.error)),
+            poll_age.map(|age| age.as_secs_f64() * 1000.0),
+            gap.as_secs_f64() * 1000.0,
+            self.observed_active,
+            self.scheduler.active.load(Ordering::SeqCst),
+            self.scheduler.slots.available_permits(),
+            self.scheduling.as_ref().map(|s| s.workers_active),
+            self.scheduling.as_ref().map(|s| s.workers_max),
+            self.scheduling.as_ref().map(|s| s.foreground_active),
+            self.scheduling.as_ref().map(|s| s.backoffs),
+            size,
+            idle,
+            (size as usize).saturating_sub(idle),
+            self.db.pool.options().get_max_connections(),
+        );
+    }
 }
 
 async fn audit(db: &Database, id: u64, committed: u32) {
@@ -181,6 +307,7 @@ async fn occupied_pool_guard_failure_and_cancellation_recover_without_capacity_c
 async fn concurrent_reads_and_repeated_writes_release_pool_and_scheduler_resources() {
     let (_temp, s, db) = fixture().await;
     let db = Arc::new(db);
+    let mut diagnostics = AcquisitionDiagnostics::new(&s, &db);
     let stop = Arc::new(AtomicBool::new(false));
     let mut readers = Vec::new();
     for _ in 0..4 {
@@ -197,32 +324,50 @@ async fn concurrent_reads_and_repeated_writes_release_pool_and_scheduler_resourc
         }));
     }
     let mut waits = Vec::new();
-    for _ in 0..16 {
+    for iteration in 0..16 {
+        diagnostics.iteration = iteration + 1;
+        diagnostics.id = None;
+        diagnostics.last_snapshot = None;
+        diagnostics.observed_active = None;
+        diagnostics.scheduling = None;
+        diagnostics.last_poll = None;
+        diagnostics.last_wait = Duration::ZERO;
+        diagnostics.phase("start");
         let id = s.start(request()).await.unwrap().id;
-        let job = wait(&s, id, |j| j.state.terminal()).await;
+        diagnostics.id = Some(id);
+        diagnostics.phase("terminal_wait");
+        let job = wait_observed(&s, id, |j| j.state.terminal(), Some(&mut diagnostics)).await;
+        diagnostics.phase("terminal_assertions");
         assert_eq!(job.state, State::Completed, "{:?}", job.error);
         assert_eq!((job.processed, job.committed), (128, 128));
         waits.extend(job.pool_wait_ms);
+        diagnostics.phase("audit");
         audit(&db, id, 128).await;
     }
     stop.store(true, Ordering::SeqCst);
+    diagnostics.phase("readers_join");
     let mut read_count = 0;
     for reader in readers {
         read_count += reader.await.unwrap();
     }
+    diagnostics.phase("shutdown");
     s.shutdown().await.unwrap();
+    diagnostics.phase("resource_assertions");
     assert_eq!(s.report().active, 0);
     assert_eq!(s.budget.stats().workers_active, 0);
     println!(
-        "M0.8 natural reads={read_count} writes=2048 acquisitions={} max_ms={:.3} pool_size={} idle={}",
+        "M0.8 natural reads={read_count} writes=2048 acquisitions={} max_ms={:.3} pool_size={} idle={} max_terminal_wait_ms={:.3} max_poll_gap_ms={:.3}",
         waits.len(),
         waits.iter().copied().fold(0.0, f64::max),
         db.pool.size(),
-        db.pool.num_idle()
+        db.pool.num_idle(),
+        diagnostics.max_wait.as_secs_f64() * 1000.0,
+        diagnostics.max_poll_gap.as_secs_f64() * 1000.0,
     );
     // Drop returns may still be queued (num_idle is only an instantaneous
     // sample). Reacquire every slot to test recovery, then close with a bound.
     let mut recovered = Vec::new();
+    diagnostics.phase("pool_reacquire");
     for _ in 0..storage::POOL_SIZE {
         recovered.push(
             tokio::time::timeout(Duration::from_secs(5), db.pool.acquire())
@@ -232,6 +377,7 @@ async fn concurrent_reads_and_repeated_writes_release_pool_and_scheduler_resourc
         );
     }
     drop(recovered);
+    diagnostics.phase("pool_close");
     tokio::time::timeout(Duration::from_secs(5), db.pool.close())
         .await
         .unwrap();
