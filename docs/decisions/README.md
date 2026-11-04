@@ -21,6 +21,8 @@ Use new ADRs for future material architectural changes and link superseded recor
 
 ## Review and documentation alignment
 
+[ADR-012](ADR-012-bounded-standalone-session-observation.md) is **Proposed — 2026-11-04**, with no production acceptance. M2.1 tests bounded direct-child observation and recommends a separately authorized M2.2. Retaining an observation handle would explicitly extend ADR-011's immediate-release contract; ADR-011 and M1.8 production behavior are unchanged. See [M2.1 evidence](../development/M2.1_SESSION_TRACKING_FEASIBILITY.md).
+
 [ADR-011](ADR-011-standalone-launch-execution-contract.md) is **accepted for M1.8 on 2026-10-30** under explicit user authorization after review against merged M1.7. It preserves the execution threat model, identifier/revision-only IPC, deterministic references, native privilege/handle boundaries, writer reservation, maintenance admission and creation-only results. [M1.8 verification](../development/M1.8_PRODUCTION_STANDALONE_LAUNCH_VERIFICATION.md) governs production completion; [M1.7 evidence](../development/M1.7_STANDALONE_LAUNCH_FEASIBILITY.md) remains historical. ADR-010 identities and schema v4 remain unchanged.
 
 [ADR-009](ADR-009-offline-library-restore-lifecycle.md) records the M1.4 implementation decision for consistent snapshots and a process-exclusive, restart-bound restore/recovery lifecycle. Its verification report governs implementation claims; ADR-007 exceptions and accepted ADR-008 remain unchanged, and Steam discovery remains deferred.

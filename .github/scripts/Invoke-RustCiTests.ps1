@@ -21,7 +21,7 @@ if ($Suite -eq 'hosted') {
     $package = @($metadata.packages | Where-Object { $_.name -eq 'game-manager' })
     if ($package.Count -ne 1) { throw 'Expected exactly one game-manager package.' }
     $targets = @($package[0].targets | Where-Object { $_.test -and $_.kind -contains 'test' })
-    $nativeTargets = @('standalone_launch', 'standalone_launch_production')
+    $nativeTargets = @('standalone_launch', 'standalone_launch_production', 'session_observation')
     foreach ($nativeTarget in $nativeTargets) {
         if (@($targets | Where-Object { $_.name -eq $nativeTarget }).Count -ne 1) {
             throw "Mandatory native target missing: $nativeTarget"

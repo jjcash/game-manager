@@ -123,5 +123,5 @@ jobs:
             Format-List
 
       - name: Rust unit, integration and documentation tests
-        # Compile standalone_launch here; execute it only under the documented local gate.
+        # Compile native launch/observation targets; execute them under the local gate.
         run: ../../.github/scripts/Invoke-RustCiTests.ps1 -Suite hosted
