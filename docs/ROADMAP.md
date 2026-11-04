@@ -268,6 +268,14 @@ Exit: records persist through restart; repeated imports do not duplicate entries
 
 ## M2 — Launching, sessions and background work
 
+### M2.1 — Session tracking contract and native feasibility
+
+Separately authorized 2026-11-04 from clean merged M1.9 `cb94e05`, on `feat/m2.1-session-tracking-feasibility`. An isolated test-support Windows wait set observes two direct children plus one stop event. Ten synthetic cases verify lifecycle, uncertainty, cancellation/failure, child survival, exact handle recovery and bounded concurrency. See [M2.1 report](development/M2.1_SESSION_TRACKING_FEASIBILITY.md) and external final exact-tree verification for actual results.
+
+Recommendation **A: proceed to M2.2 production standalone session observation only with separate authorization** and review/acceptance of **Proposed** [ADR-012](decisions/ADR-012-bounded-standalone-session-observation.md). Direct-process evidence does not establish gameplay or generic handoff attribution. No production tracking, playtime persistence, new IPC/UI, migration, launch behavior change or M2.2 work is included. Existing v5/backup/artwork/query/performance contracts remain unchanged; no commit, push or PR is authorized.
+
+### Remaining M2 scope
+
 Implement manual/standalone and supported Steam launching, multiple launch profiles, process handoff handling, confidence-aware sessions, persistent prioritized jobs, progress/cancellation and throttled notifications. Launching a process is not proof of accurate gameplay tracking.
 
 Exit: supported launch/session workflows pass; concurrent imports do not block interaction; failures and uncertain tracking are explained.

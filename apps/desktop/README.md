@@ -30,3 +30,11 @@ cargo test --manifest-path src-tauri/Cargo.toml --all-features --locked --test s
 ```
 
 Require 12/12 and 9/9 respectively in an ordinary unelevated Windows desktop. Hosted CI compiles these targets only; local evidence is a separate manual approval gate. Repeat after launch/security/dependency changes and record the exact tested tree under the accepted policy.
+
+M2.1 adds an isolated Windows session-observation feasibility target, with no production tracking, playtime, IPC or interface. Run its complete ten cases locally in the same unelevated desktop context:
+
+```powershell
+cargo test --manifest-path src-tauri/Cargo.toml --all-features --locked --test session_observation -- --test-threads=1 --nocapture
+```
+
+Hosted CI compiles this target only, alongside both unchanged historical native targets. All other test targets still execute. See [M2.1 evidence](../../docs/development/M2.1_SESSION_TRACKING_FEASIBILITY.md) and Proposed ADR-012; production adoption requires separate authorization.
