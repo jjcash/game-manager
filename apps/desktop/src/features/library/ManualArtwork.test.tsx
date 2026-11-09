@@ -158,16 +158,23 @@ function observeArtwork() {
       return vi.fn();
     },
   );
-  return listeners;
+  return {
+    listeners,
+    async waitForSubscriptions(count: number) {
+      // The preview DOM can commit before Thumbnail's subscription effect runs.
+      await waitFor(() => expect(listeners).toHaveLength(count));
+    },
+  };
 }
 it("announces a confirmed assigned-artwork failure once, with safe recovery wording", async () => {
-  const listeners = observeArtwork();
+  const { listeners, waitForSubscriptions } = observeArtwork();
   vi.mocked(getManual).mockResolvedValue({
     ...details,
     artworkAssetId: "asset",
   });
   render(<ManualEditor gameId="canonical" changed={vi.fn()} close={vi.fn()} />);
   await screen.findByRole("region", { name: "Local artwork" });
+  await waitForSubscriptions(1);
   const status = artworkStatus();
   expect(status.textContent).toBe("");
   const mutations = vi.fn();
@@ -190,11 +197,12 @@ it("announces a confirmed assigned-artwork failure once, with safe recovery word
   observer.disconnect();
 });
 it("keeps unassigned, pending, deferred and successfully decoded artwork silent", async () => {
-  const listeners = observeArtwork();
+  const { listeners, waitForSubscriptions } = observeArtwork();
   const editor = render(
     <ManualEditor gameId="canonical" changed={vi.fn()} close={vi.fn()} />,
   );
   await screen.findByRole("region", { name: "Local artwork" });
+  await waitForSubscriptions(1);
   act(() => listeners[0](failed));
   expect(screen.queryByText(new RegExp(unavailable))).toBeNull();
   editor.unmount();
@@ -206,6 +214,7 @@ it("keeps unassigned, pending, deferred and successfully decoded artwork silent"
     <ManualEditor gameId="canonical" changed={vi.fn()} close={vi.fn()} />,
   );
   await screen.findByRole("region", { name: "Local artwork" });
+  await waitForSubscriptions(2);
   for (const status of ["missing", "busy", "stopping", "deferred"]) {
     act(() => listeners[1]({ ...failed, status }));
     expect(artworkStatus().textContent).toBe("");
@@ -220,7 +229,7 @@ it("keeps unassigned, pending, deferred and successfully decoded artwork silent"
   expect(screen.queryByRole("img")).toBeNull();
 });
 it("explains browser image errors and recovers on replace, ignoring released failures", async () => {
-  const listeners = observeArtwork();
+  const { listeners, waitForSubscriptions } = observeArtwork();
   vi.mocked(getManual).mockResolvedValue({ ...details, artworkAssetId: "old" });
   vi.mocked(changeArtwork).mockResolvedValue(true);
   const editor = render(
@@ -229,6 +238,7 @@ it("explains browser image errors and recovers on replace, ignoring released fai
   const replace = await screen.findByRole("button", {
     name: "Replace local artwork…",
   });
+  await waitForSubscriptions(1);
   act(() => listeners[0](ready));
   fireEvent.error(editor.container.querySelector("img")!);
   expect(artworkStatus().textContent).toContain(unavailable);
@@ -238,7 +248,7 @@ it("explains browser image errors and recovers on replace, ignoring released fai
     artworkAssetId: "new",
   });
   fireEvent.click(replace);
-  await waitFor(() => expect(listeners).toHaveLength(2));
+  await waitForSubscriptions(2);
   expect(artworkStatus().textContent).toBe("");
   act(() => listeners[0](failed));
   expect(artworkStatus().textContent).toBe("");
@@ -247,7 +257,7 @@ it("explains browser image errors and recovers on replace, ignoring released fai
   expect(artworkStatus().textContent).toBe("");
 });
 it("clears stale failures after clear and same-revision stale-request refresh", async () => {
-  const listeners = observeArtwork();
+  const { listeners, waitForSubscriptions } = observeArtwork();
   const assigned = { ...details, artworkAssetId: "asset" };
   vi.mocked(getManual).mockResolvedValue(assigned);
   vi.mocked(changeArtwork)
@@ -257,9 +267,10 @@ it("clears stale failures after clear and same-revision stale-request refresh", 
   const replace = await screen.findByRole("button", {
     name: "Replace local artwork…",
   });
+  await waitForSubscriptions(1);
   act(() => listeners[0](failed));
   fireEvent.click(replace);
-  await waitFor(() => expect(listeners).toHaveLength(2));
+  await waitForSubscriptions(2);
   expect(artworkStatus().textContent).toBe("");
   act(() => listeners[0](failed));
   expect(artworkStatus().textContent).toBe("");
@@ -268,17 +279,19 @@ it("clears stale failures after clear and same-revision stale-request refresh", 
   vi.mocked(getManual).mockResolvedValueOnce({ ...details, revision: 5 });
   fireEvent.click(screen.getByRole("button", { name: "Clear artwork" }));
   await screen.findByRole("button", { name: "Choose local artwork…" });
+  await waitForSubscriptions(3);
   act(() => listeners[1](failed));
   act(() => listeners[2]({ ...failed, status: "missing" }));
   expect(artworkStatus().textContent).toBe("");
 });
 it("suppresses a selected game's failure immediately while another game's details load", async () => {
-  const listeners = observeArtwork();
+  const { listeners, waitForSubscriptions } = observeArtwork();
   vi.mocked(getManual).mockResolvedValue({ ...details, artworkAssetId: "old" });
   const editor = render(
     <ManualEditor gameId="canonical" changed={vi.fn()} close={vi.fn()} />,
   );
   await screen.findByRole("region", { name: "Local artwork" });
+  await waitForSubscriptions(1);
   act(() => listeners[0](failed));
   let resolve!: (value: Details) => void;
   vi.mocked(getManual).mockReturnValueOnce(
@@ -294,18 +307,20 @@ it("suppresses a selected game's failure immediately while another game's detail
   await act(async () =>
     resolve({ ...details, id: "other", artworkAssetId: "new" }),
   );
+  await waitForSubscriptions(2);
   expect(artworkStatus().textContent).toBe("");
   act(() => listeners[0](failed));
   expect(artworkStatus().textContent).toBe("");
 });
 it("retires a confirmed mutation's failure while bounded assignment details refresh", async () => {
-  const listeners = observeArtwork();
+  const { listeners, waitForSubscriptions } = observeArtwork();
   vi.mocked(getManual).mockResolvedValue({ ...details, artworkAssetId: "old" });
   vi.mocked(changeArtwork).mockResolvedValue(true);
   render(<ManualEditor gameId="canonical" changed={vi.fn()} close={vi.fn()} />);
   const replace = await screen.findByRole("button", {
     name: "Replace local artwork…",
   });
+  await waitForSubscriptions(1);
   act(() => listeners[0](failed));
   let resolve!: (value: Details) => void;
   vi.mocked(getManual).mockReturnValueOnce(
@@ -321,5 +336,6 @@ it("retires a confirmed mutation's failure while bounded assignment details refr
   await act(async () =>
     resolve({ ...details, revision: 5, artworkAssetId: "new" }),
   );
+  await waitForSubscriptions(2);
   expect(artworkStatus().textContent).toBe("");
 });
